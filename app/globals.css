@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* 1. Base Layer: Variables & Root Settings */
+@layer base {
+  :root {
+    /* Brand Colors */
+    --background: #ffffff;
+    --foreground: #0f172a;
+    --brand-blue: #004098;
+    --brand-orange: #f97316;
+    
+    /* Custom Radii */
+    --radius-4xl: 2rem; /* 32px - Perfect for Bento grids */
+    
+    /* Glassmorphism Variables */
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-blur: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: #0a0c10;
+      --foreground: #f8fafc;
+    }
+  }
+}
+
+/* 2. Theme Layer: Mapping to Tailwind Classes */
+@theme {
+  /* Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--brand-blue);
+  --color-secondary: var(--brand-orange);
+  
+  /* Radii - Now you can use rounded-4xl */
+  --radius-4xl: var(--radius-4xl);
+
+  /* Custom Utility for Glass */
+  --background-image-glass: linear-gradient(
+    to bottom right,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.01)
+  );
+}
+
+/* 3. Global Styles & Utility Classes */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  padding: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Professional Glass Class for your Admin Cards */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth Scroll for the Dashboard */
+html {
+  scroll-behavior: smooth;
+}
