@@ -5,7 +5,7 @@ import { useEffect } from "react";
 export default function StaffLoginPage() {
   useEffect(() => {
     // Redirects directly to your local Django app dashboard endpoint
-    window.location.href = "http://127.0.0.1:8000/en/dashboard/";
+    window.location.href = "https://admin-portal-yil.onrender.com/admin/";
   }, []);
 
   return (
