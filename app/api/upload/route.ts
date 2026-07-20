@@ -1,8 +1,23 @@
 import { google } from 'googleapis';
 import { NextRequest, NextResponse } from 'next/server';
 import { Readable } from 'stream';
+import { getUserFromRequest } from '../../library/auth';
+import { checkRateLimit, getClientIP } from '../../library/rateLimiter';
 
 export async function POST(req: NextRequest) {
+  // Auth check: must be authenticated to upload payment proofs
+  const user = getUserFromRequest(req);
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
+  // Rate limit uploads
+  const ip = getClientIP(req);
+  const rateCheck = checkRateLimit({ context: 'upload', identifier: ip, maxRequests: 10, windowMs: 60 * 60 * 1000 });
+  if (!rateCheck.allowed) {
+    return NextResponse.json({ error: 'Too many uploads. Please wait before trying again.' }, { status: 429 });
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -41,15 +56,18 @@ export async function POST(req: NextRequest) {
 
     // --- STEP 2: IMMEDIATELY GRANT YOU PERMISSION ---
     // This ensures you can see and manage the file even if the robot "owns" it
-    await drive.permissions.create({
-      fileId: fileId!,
-      requestBody: {
-        role: 'writer',
-        type: 'user',
-        emailAddress: 'prajwalkt.official@gmail.com', // Your Gmail
-      },
-      supportsAllDrives: true,
-    });
+    const grantEmail = process.env.UPLOAD_GRANT_EMAIL;
+    if (grantEmail) {
+      await drive.permissions.create({
+        fileId: fileId!,
+        requestBody: {
+          role: 'writer',
+          type: 'user',
+          emailAddress: grantEmail,
+        },
+        supportsAllDrives: true,
+      });
+    }
 
     return NextResponse.json({ success: true, fileId });
 

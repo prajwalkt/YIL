@@ -1,10 +1,14 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import Link from "next/link";
 import { 
-  LogOut, ChevronDown, MapPin, Users, 
-  CheckCircle2, Mail, Microscope, Monitor, Laptop, Wifi, BookOpen, Video, MonitorPlay, Lock, ArrowRight, Clock, Radio, ScreenShare, HelpCircle, Phone, Printer,
-  Settings, Database, ShieldCheck, Activity, KeyRound, X, Upload, FileText, AlertCircle, Search, ExternalLink, LayoutDashboard, Bell
+  Menu, X, BookOpen, Clock, Users, ArrowRight, CheckCircle2, 
+  MapPin, Phone, Mail, FileText, ChevronRight, PlayCircle, Star, 
+  Award, Globe2, Building2, MonitorPlay, Video, Calendar, Plus, 
+  Search, ExternalLink, Laptop, Filter, Radio, Upload, LogOut, ChevronDown, Microscope, Monitor, Wifi, MonitorPlay as LucideMonitorPlay, Lock, Database, ShieldCheck, Activity, KeyRound, Settings, Printer, Loader, PieChart, Globe, Building, FileVideo, FilePlus, ScreenShare
 } from 'lucide-react';
+import RegistrationForm from "../components/RegistrationForm";
+import BackButton from "../components/BackButton";
 
 // --- Interfaces ---
 interface Course {
@@ -39,6 +43,8 @@ export default function YTSProject() {
   const [currentFormUrl, setCurrentFormUrl] = useState<string>("");
   const [selectedCountry, setSelectedCountry] = useState<string>("India");
   const [paymentStep, setPaymentStep] = useState<"choice" | "phonepe" | "upload">("choice");
+  const [selectedCourseForReg, setSelectedCourseForReg] = useState<string>("");
+  const [selectedModeForReg, setSelectedModeForReg] = useState<string>("");
 
   // --- CONFIGURATION ---
   const ADMIN_PASSWORD = "4xg8i3h0rf265";
@@ -73,7 +79,7 @@ export default function YTSProject() {
     if (showAdmin) {
       const fetchCount = async () => {
         try {
-          const res = await fetch('/api/registrations');
+          const res = await fetch('/api/registrations_count');
           const data = await res.json();
           if (data.count !== undefined) {
             setTotalRegistrations(data.count);
@@ -100,10 +106,19 @@ export default function YTSProject() {
     }
   };
 
-  const startRegistration = () => {
+  const startRegistration = (courseName?: string, mode?: string) => {
     setIsFormSubmitted(false);
     setPaymentStep("choice");
     setCurrentFormUrl(INITIAL_REGISTRATION_URL);
+    setSelectedCourseForReg(courseName || "");
+    // Map public tab names to registration form mode values
+    const modeMap: Record<string, string> = {
+      "E-learning Course": "E-Learning (Self-Paced)",
+      "Offline Training": "Classroom Training",
+      "Online Training": "Online Training",
+      "Site Training": "Site Training",
+    };
+    setSelectedModeForReg(modeMap[mode || ""] || mode || "");
     setIsRegistering(true);
   };
 
@@ -271,60 +286,26 @@ export default function YTSProject() {
                   </div>
                 )}
               </div>
-              <button onClick={() => { setIsRegistering(false); setIsFormSubmitted(false); }} className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"><X size={24} /></button>
+              <BackButton 
+                onClick={() => {
+                  const hasData = localStorage.getItem("registrationData");
+                  if (!isFormSubmitted && hasData) {
+                     if(!window.confirm("You have unsaved changes. Are you sure you want to go back?")) return;
+                  }
+                  setIsRegistering(false); 
+                  setIsFormSubmitted(false); 
+                }} 
+                className="bg-white px-3 py-1.5 rounded-xl border border-slate-200" 
+                label="Close" 
+              />
             </div>
 
-            <div className="flex-1 bg-slate-50">
-              {currentFormUrl !== "" ? (
-                <div className="relative h-full">
-                  <iframe src={currentFormUrl} className="w-full h-full" onLoad={handleFormLoad}>Loading…</iframe>
-                  {!isFormSubmitted && (
-                    <button 
-                      onClick={() => {
-                        setIsFormSubmitted(true);
-                        if(selectedCountry === "India") setCurrentFormUrl("");
-                        else setCurrentFormUrl(PDF_UPLOAD_FORM_URL);
-                      }}
-                      className="absolute bottom-4 right-4 bg-orange-500 text-white text-[10px] font-black px-4 py-2 rounded-lg uppercase tracking-widest shadow-lg hover:bg-orange-600 transition-colors"
-                    >
-                      Form Submitted? Click Next
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center p-10 animate-in zoom-in-95 duration-300">
-                  {paymentStep === "choice" && (
-                    <div className="text-center space-y-8 max-w-md">
-                      <div className="space-y-2">
-                        <h3 className="text-2xl font-black text-[#004098] uppercase tracking-tight">Select Payment Method</h3>
-                        <p className="text-slate-500 text-sm">Please choose how you would like to complete your registration fee.</p>
-                      </div>
-                      <div className="grid grid-cols-1 gap-4">
-                        <button onClick={() => setPaymentStep("phonepe")} className="group bg-white border-2 border-slate-200 hover:border-purple-500 p-6 rounded-3xl flex items-center gap-4 transition-all hover:shadow-xl">
-                          <div className="bg-purple-100 text-purple-600 p-4 rounded-2xl group-hover:bg-purple-600 group-hover:text-white transition-colors"><Radio size={24}/></div>
-                          <div className="text-left"><p className="font-black text-slate-800 uppercase text-xs tracking-widest">Option 1</p><p className="font-bold text-[#004098]">PhonePe / UPI QR</p></div>
-                        </button>
-                        <button onClick={() => { setPaymentStep("upload"); setCurrentFormUrl(PDF_UPLOAD_FORM_URL); }} className="group bg-white border-2 border-slate-200 hover:border-orange-500 p-6 rounded-3xl flex items-center gap-4 transition-all hover:shadow-xl">
-                          <div className="bg-orange-100 text-orange-600 p-4 rounded-2xl group-hover:bg-orange-600 group-hover:text-white transition-colors"><Upload size={24}/></div>
-                          <div className="text-left"><p className="font-black text-slate-800 uppercase text-xs tracking-widest">Option 2</p><p className="font-bold text-[#004098]">Direct PDF Upload</p></div>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentStep === "phonepe" && (
-                    <div className="text-center animate-in fade-in slide-in-from-bottom-4">
-                      <div className="bg-white p-8 rounded-4xl shadow-2xl border border-slate-100 max-w-xs mx-auto">
-                        <p className="text-[10px] font-black text-purple-500 uppercase tracking-[0.2em] mb-4 text-center">Scan to Pay</p>
-                        <img src={getDriveImageUrl("YOUR_QR_IMAGE_ID")} alt="PhonePe QR" className="w-full aspect-square object-contain mb-4 rounded-xl" />
-                        <p className="text-xs font-bold text-slate-400">Scan using any UPI App</p>
-                      </div>
-                      <button onClick={() => { setPaymentStep("upload"); setCurrentFormUrl(PDF_UPLOAD_FORM_URL); }} className="mt-8 text-sm font-black text-[#004098] hover:text-orange-500 flex items-center gap-2 mx-auto uppercase tracking-widest">I've paid, take me to Upload <ArrowRight size={16}/></button>
-                      <button onClick={() => setPaymentStep("choice")} className="mt-4 text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest">Go Back</button>
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="flex-1 bg-slate-50 overflow-y-auto">
+              <RegistrationForm
+                selectedCountry={selectedCountry}
+                selectedCourse={selectedCourseForReg}
+                selectedMode={selectedModeForReg}
+              />
             </div>
           </div>
         </div>
@@ -378,10 +359,11 @@ export default function YTSProject() {
             <button className={`h-full px-6 text-sm font-bold transition-all border-b-4 flex items-center gap-2 whitespace-nowrap ${isTrainingActive ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Training Courses <ChevronDown size={14} /></button>
             {isHoveringCourses && (
               <div className="absolute top-full left-0 w-64 bg-white shadow-xl border border-slate-100 py-2 z-50 rounded-b-xl">
-                {["Offline Training", "Online Training", "E-learning Course"].map((option) => (
+                {["Offline Training", "Online Training", "Site Training", "E-learning Course"].map((option) => (
                   <button key={option} onClick={() => { setActiveTab(option); setIsHoveringCourses(false); }} className="w-full text-left px-6 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-[#004098] flex items-center gap-3">
                     {option === "Offline Training" && <BookOpen size={16} />} 
                     {option === "Online Training" && <Video size={16} />} 
+                    {option === "Site Training" && <Building2 size={16} />} 
                     {option === "E-learning Course" && <MonitorPlay size={16} />} 
                     {option}
                   </button>
@@ -474,7 +456,7 @@ export default function YTSProject() {
                       <span>{course.agendaPath ? "View Course Agenda" : "Agenda Coming Soon"}</span>
                     </a>
 
-                    <button onClick={startRegistration} className="w-full bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white font-black py-3 rounded-2xl flex items-center justify-center gap-2 transition-all text-sm">Register Now <ArrowRight size={16} /></button>
+                    <button onClick={() => startRegistration(course.name, activeTab)} className="w-full bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white font-black py-3 rounded-2xl flex items-center justify-center gap-2 transition-all text-sm">Register Now <ArrowRight size={16} /></button>
                   </div>
                 </div>
               ))}
@@ -511,13 +493,59 @@ export default function YTSProject() {
                       <span>Agenda</span>
                     </a>
 
-                    <button onClick={startRegistration} className="w-full sm:w-auto bg-orange-500 text-white hover:bg-blue-600 font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-all">Register Now <ArrowRight size={18}/></button>
+                    <button onClick={() => startRegistration(course.name, activeTab)} className="w-full sm:w-auto bg-orange-500 text-white hover:bg-blue-600 font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-all">Register Now <ArrowRight size={18}/></button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
+        {activeTab === "E-learning Course" && (
+          <div className="animate-in fade-in space-y-8 max-w-5xl mx-auto">
+            <h2 className="text-3xl font-light text-[#004098]">E-Learning Courses</h2>
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-2">
+              <p className="text-blue-800 text-sm font-semibold">🎓 Self-paced learning — access course materials anytime after enrollment approval.</p>
+            </div>
+            <div className="space-y-4">
+              {baseCourses.map((course) => (
+                <div key={`el-${course.id}`} className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 hover:border-blue-300 hover:shadow-xl transition-all group relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+                  <div className="w-full md:w-24 h-16 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 font-black shrink-0">{course.code}</div>
+                  <div className="flex-1 text-center md:text-left">
+                    <h3 className="text-xl font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{course.name}</h3>
+                    <span className="flex items-center gap-1 text-sm text-slate-400 mt-2"><Clock size={14}/> Self-Paced · E-Learning</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto shrink-0">
+                    <button onClick={() => startRegistration(course.name, activeTab)} className="w-full sm:w-auto bg-orange-500 text-white hover:bg-blue-600 font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-all">Register Now <ArrowRight size={18}/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "Site Training" && (
+          <div className="animate-in fade-in space-y-8">
+            <h2 className="text-3xl font-light text-[#004098]">Site Training Programs</h2>
+            <div className="bg-blue-50 p-6 rounded-2xl mb-8 border border-blue-100">
+              <p className="text-blue-800 text-sm font-semibold">We can conduct training at your facility. Select a course below to register your interest.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {baseCourses.map((course) => (
+                <div key={`site-${course.id}`} className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm flex flex-col group hover:shadow-lg transition-all">
+                  <div className="bg-[#004098] p-6 text-white flex-1">
+                    <div className="text-[10px] font-black uppercase tracking-widest mb-2 opacity-60">CODE: {course.code}</div>
+                    <h3 className="text-lg font-bold leading-tight">{course.name}</h3>
+                  </div>
+                  <div className="p-5 bg-slate-50/50 flex flex-col gap-3">
+                    <button onClick={() => startRegistration(course.name, activeTab)} className="w-full bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white font-black py-3 rounded-2xl flex items-center justify-center gap-2 transition-all text-sm">Register Now <ArrowRight size={16} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
 
         {activeTab === "Bangalore Training Centre" && (
           <div className="animate-in fade-in space-y-12">
@@ -604,8 +632,8 @@ export default function YTSProject() {
                 <h2 className="text-3xl font-bold text-[#004098]">Get in Touch</h2>
                 <p className="text-slate-600 text-sm leading-relaxed">For custom bulk training inquiries, institutional scheduling, or physical lab visits, connect directly with our coordination office.</p>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4 text-slate-700 font-semibold"><Mail size={20} className="text-[#004098]"/> Prajwal.Tagadinamani@Yokogawa.com</div>
-                  <div className="flex items-center gap-4 text-slate-700 font-semibold"><Phone size={20} className="text-[#004098]"/> +91 70225 85130</div>
+                  <div className="flex items-center gap-4 text-slate-700 font-semibold"><Mail size={20} className="text-[#004098]"/> YIL-YTS@yokogawa.com</div>
+                  <div className="flex items-center gap-4 text-slate-700 font-semibold"><Phone size={20} className="text-[#004098]"/> +91-80-41586000</div>
                 </div>
               </div>
             </div>
