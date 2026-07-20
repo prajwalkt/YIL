@@ -76,47 +76,48 @@ export default function LearnerPortal({ userRole = 'STUDENT' }: { userRole?: 'ST
             </div>
             <div>
               <h1 className="font-bold leading-tight text-white">{userRole === 'AFFILIATE' ? 'Affiliate Portal' : 'Student Portal'}</h1>
-              <p className="text-white/60 text-xs">My Learning Hub</p>
+              <p className="text-white/60 text-xs hidden sm:block">My Learning Hub</p>
             </div>
           </div>
           
           <div className="flex items-center gap-6">
-            <nav className="hidden md:flex items-center gap-1">
-              {[
-                { id: 'learning', label: 'My Learning', icon: <PlayCircle size={16}/> },
-                { id: 'elearning', label: 'E-Learning', icon: <Tv size={16}/> },
-                { id: 'assessments', label: 'Assessments', icon: <ClipboardList size={16}/> },
-                { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={16}/> },
-                { id: 'certificates', label: 'Certificates', icon: <Award size={16}/> },
-                { id: 'invoices', label: 'Billing', icon: <DollarSign size={16}/> },
-                { id: 'materials', label: 'Materials', icon: <BookOpen size={16}/> },
-                { id: 'inbox', label: 'Inbox', icon: <MessageSquare size={16}/> },
-                { id: 'profile', label: 'Profile', icon: <UserIcon size={16}/> },
-              ].map(tab => (
-                <button 
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                    activeTab === tab.id ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white/90'
-                  }`}
-                >
-                  {tab.icon} {tab.label}
-                </button>
-              ))}
-            </nav>
-            
-            <div className="w-px h-8 bg-white/20"></div>
-            
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-white">{user?.firstName} {user?.lastName}</p>
                 <p className="text-xs text-blue-200">{user?.organization || userRole}</p>
               </div>
-              <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-red-500 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
-                <LogOut size={16} /> <span className="hidden sm:inline">Logout</span>
+              <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-red-500 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+                <LogOut size={16}/> <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Mobile-friendly scrollable tabs below main header on all screens, or just responsive */}
+        <div className="max-w-7xl mx-auto px-6 border-t border-white/10">
+          <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar py-2">
+            {[
+              { id: 'learning', label: 'My Learning', icon: <PlayCircle size={16}/> },
+              { id: 'elearning', label: 'E-Learning', icon: <Tv size={16}/> },
+              { id: 'assessments', label: 'Assessments', icon: <ClipboardList size={16}/> },
+              { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={16}/> },
+              { id: 'certificates', label: 'Certificates', icon: <Award size={16}/> },
+              { id: 'invoices', label: 'Billing', icon: <DollarSign size={16}/> },
+              { id: 'materials', label: 'Materials', icon: <BookOpen size={16}/> },
+              { id: 'inbox', label: 'Inbox', icon: <MessageSquare size={16}/> },
+              { id: 'profile', label: 'Profile', icon: <UserIcon size={16}/> },
+            ].map(tab => (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
+                  activeTab === tab.id ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+                }`}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </nav>
         </div>
       </header>
 

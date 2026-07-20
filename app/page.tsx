@@ -352,7 +352,7 @@ export default function YTSProject() {
       </header>
 
       <nav className="bg-slate-100 border-b sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 flex items-center h-16 overflow-x-auto lg:overflow-visible">
+        <div className="max-w-7xl mx-auto px-6 flex items-center h-16 overflow-x-auto lg:overflow-visible no-scrollbar">
           <button onClick={() => setActiveTab("Introduction")} className={`h-full px-6 text-sm font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Introduction" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Introduction</button>
           
           <div className="relative h-full" onMouseEnter={() => setIsHoveringCourses(true)} onMouseLeave={() => setIsHoveringCourses(false)}>
@@ -380,11 +380,11 @@ export default function YTSProject() {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto p-8 lg:p-12">
+      <main className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12">
         {activeTab === "Introduction" && (
           <div className="animate-in fade-in space-y-12 text-slate-700">
             <div className="space-y-6">
-              <h1 className="text-4xl font-bold text-[#004098]">Technical Training School</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-[#004098]">Technical Training School</h1>
               <div className="text-lg max-w-5xl leading-relaxed space-y-6">
                 <p>The Technical School offers a wide range of training courses covering <strong>Plant instruments, Communication protocols, Cyber Security, Distributed Control System, PLC, NCS etc.</strong> with complete hands-on practise.</p>
                 <p>We provide customized training for you based on your requirement.</p>
@@ -427,7 +427,7 @@ export default function YTSProject() {
 
         {activeTab === "Offline Training" && (
           <div className="animate-in fade-in space-y-8">
-            <h2 className="text-3xl font-light text-[#004098]">Offline Training Programs</h2>
+            <h2 className="text-2xl md:text-3xl font-light text-[#004098]">Offline Training Programs</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {baseCourses.map((course) => (
                 <div key={course.id} className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm flex flex-col group hover:shadow-lg transition-all">
@@ -466,7 +466,7 @@ export default function YTSProject() {
 
         {activeTab === "Online Training" && (
           <div className="animate-in fade-in space-y-8 max-w-5xl mx-auto">
-            <h2 className="text-3xl font-light text-[#004098]">Online VILT Programs</h2>
+            <h2 className="text-2xl md:text-3xl font-light text-[#004098]">Online VILT Programs</h2>
             <div className="space-y-4">
               {onlineCourses.map((course) => (
                 <div key={course.id} className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 hover:border-blue-300 hover:shadow-xl transition-all group relative overflow-hidden">
@@ -502,7 +502,7 @@ export default function YTSProject() {
         )}
         {activeTab === "E-learning Course" && (
           <div className="animate-in fade-in space-y-8 max-w-5xl mx-auto">
-            <h2 className="text-3xl font-light text-[#004098]">E-Learning Courses</h2>
+            <h2 className="text-2xl md:text-3xl font-light text-[#004098]">E-Learning Courses</h2>
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-2">
               <p className="text-blue-800 text-sm font-semibold">🎓 Self-paced learning — access course materials anytime after enrollment approval.</p>
             </div>
@@ -526,7 +526,7 @@ export default function YTSProject() {
 
         {activeTab === "Site Training" && (
           <div className="animate-in fade-in space-y-8">
-            <h2 className="text-3xl font-light text-[#004098]">Site Training Programs</h2>
+            <h2 className="text-2xl md:text-3xl font-light text-[#004098]">Site Training Programs</h2>
             <div className="bg-blue-50 p-6 rounded-2xl mb-8 border border-blue-100">
               <p className="text-blue-800 text-sm font-semibold">We can conduct training at your facility. Select a course below to register your interest.</p>
             </div>
@@ -549,9 +549,9 @@ export default function YTSProject() {
 
         {activeTab === "Bangalore Training Centre" && (
           <div className="animate-in fade-in space-y-12">
-            <div className="flex justify-between items-start">
-              <h1 className="text-4xl font-light text-[#004098]">Bangalore Training Centre</h1>
-              <div className="bg-[#004098] text-white px-6 py-4 rounded-2xl flex items-center gap-4 shadow-lg">
+            <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+              <h1 className="text-3xl md:text-4xl font-light text-[#004098]">Bangalore Training Centre</h1>
+              <div className="bg-[#004098] text-white px-6 py-4 rounded-2xl flex items-center gap-4 shadow-lg w-full md:w-auto">
                 <MapPin className="text-orange-400" />
                 <div className="text-xs uppercase font-black tracking-widest leading-tight">Electronic City<br/>Phase 1, Bangalore</div>
               </div>
@@ -570,7 +570,7 @@ export default function YTSProject() {
         {activeTab === "Training Calendar" && (
           <div className="animate-in fade-in space-y-12 max-w-5xl mx-auto">
             <div className="text-center space-y-3">
-              <h1 className="text-4xl font-bold text-[#004098]">Yokogawa Training Calendar</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-[#004098]">Yokogawa Training Calendar</h1>
               <p className="text-slate-500 max-w-xl mx-auto text-sm">
                 Select your preferred learning delivery format to view or download the upcoming technical schedule.
               </p>
@@ -624,12 +624,12 @@ export default function YTSProject() {
 
         {activeTab === "Contact Us" && (
           <div className="animate-in fade-in space-y-10 max-w-6xl mx-auto">
-            <div className="bg-slate-50 rounded-3xl overflow-hidden border border-slate-200 shadow-sm flex flex-col md:flex-row min-h-100">
-              <div className="md:w-5/12 relative bg-slate-200">
+            <div className="bg-slate-50 rounded-3xl overflow-hidden border border-slate-200 shadow-sm flex flex-col md:flex-row min-h-[400px]">
+              <div className="md:w-5/12 relative bg-slate-200 h-64 md:h-auto">
                 <img src={getDriveImageUrl("1kObpKgixyg2wHwlygdJeGoMaBnSyPBGr")} alt="Office" className="w-full h-full object-cover" />
               </div>
               <div className="md:w-7/12 p-8 md:p-12 flex flex-col justify-center space-y-6">
-                <h2 className="text-3xl font-bold text-[#004098]">Get in Touch</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-[#004098]">Get in Touch</h2>
                 <p className="text-slate-600 text-sm leading-relaxed">For custom bulk training inquiries, institutional scheduling, or physical lab visits, connect directly with our coordination office.</p>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 text-slate-700 font-semibold"><Mail size={20} className="text-[#004098]"/> YIL-YTS@yokogawa.com</div>
