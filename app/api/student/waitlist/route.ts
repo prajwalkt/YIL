@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
       `);
     return NextResponse.json({ success: true, waitlist: result.recordset });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { calendarId } = await request.json();
+    const { calendarId } = await parseAndSanitizeBody(request);
     if (!calendarId) return NextResponse.json({ success: false, message: 'calendarId required' }, { status: 400 });
 
     const pool = await getConnection();
@@ -64,6 +65,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Successfully joined the waiting list' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

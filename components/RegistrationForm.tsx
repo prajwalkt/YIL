@@ -1,23 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   User,
   Mail,
   Phone,
   Building2,
-  Globe2,
   GraduationCap,
   BookOpen,
   MessageSquare,
   ChevronDown,
   ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  MapPin,
+  Users,
+  XCircle,
 } from "lucide-react";
 
 interface Props {
   selectedCountry?: string;
   selectedCourse?: string;
   selectedMode?: string;
+  selectedBatchId?: number;
   onSuccess?: () => void;
 }
 
@@ -25,9 +30,14 @@ export default function RegistrationForm({
   selectedCountry = "India",
   selectedCourse,
   selectedMode,
+  selectedBatchId,
   onSuccess,
 }: Props) {
   const [loading, setLoading] = useState(false);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -37,9 +47,12 @@ export default function RegistrationForm({
     country: selectedCountry,
     graduationYear: "",
     course: selectedCourse || "",
-    trainingMode: selectedMode || "Online Training",
+    trainingMode: selectedMode || "Online / VILT Training",
     sponsor: "Self",
     instructions: "",
+    preferredStartDate: "",
+    preferredEndDate: "",
+    selectedBatchId: selectedBatchId || null,
   });
   const [emailExists, setEmailExists] = useState(false);
   const [emailChecking, setEmailChecking] = useState(false);
@@ -51,8 +64,38 @@ export default function RegistrationForm({
       country: selectedCountry,
       course: selectedCourse || prev.course,
       trainingMode: selectedMode || prev.trainingMode,
+      selectedBatchId: selectedBatchId || prev.selectedBatchId,
     }));
-  }, [selectedCountry, selectedCourse, selectedMode]);
+  }, [selectedCountry, selectedCourse, selectedMode, selectedBatchId]);
+
+  // Fetch available batches and courses
+  useEffect(() => {
+    const fetchData = async () => {
+      setCalendarLoading(true);
+      setCoursesLoading(true);
+      try {
+        const [calRes, courseRes] = await Promise.all([
+          fetch('/api/calendar'),
+          fetch('/api/register')
+        ]);
+        
+        const calData = await calRes.json();
+        if (calData.success) {
+          setBatches(calData.calendar || []);
+        }
+
+        const courseData = await courseRes.json();
+        if (courseData.success) {
+          setCourses(courseData.courses || []);
+        }
+      } catch (e) {
+        console.error("Failed to load data", e);
+      }
+      setCalendarLoading(false);
+      setCoursesLoading(false);
+    };
+    fetchData();
+  }, []);
 
   const countries = [
     "India",
@@ -68,37 +111,7 @@ export default function RegistrationForm({
     "Others",
   ];
 
-  const courses = [
-    "CENTUM VP DCS Operation",
-    "CENTUM VP DCS Fundamentals",
-    "CENTUM VP DCS Engineering",
-    "CENTUM VP DCS Fundamentals & Engineering",
-    "CENTUM VP DCS Engineering & Maintenance",
-    "CENTUM VP DCS Maintenance",
-    "CENTUM VP DCS Advanced Engineering",
-    "CENTUM VP DCS Batch Engineering",
-    "CENTUM VP DCS AD Suite Engineering",
-    "Consolidated Alarm Management System",
-    "SEBOL Programming",
-    "STARDOM NCS with FAST/TOOLS SCADA",
-    "STARDOM NCS with CI Server",
-    "STARDOM NCS Engineering",
-    "FAST/TOOLS SCADA Operations",
-    "FAST/TOOLS SCADA Engineering",
-    "CI Server Operations",
-    "CI Server Engineering",
-    "Field Bus Basics & Engineering",
-    "Field Bus Engineering & PRM",
-    "PROFIBUS Basics & Engineering",
-    "Industrial Communication Protocols",
-    "Field Instruments for Process Control",
-    "Asset Management Software - PRM",
-    "Cyber Security for Industrial Control System",
-    "PROSAFE RS Operations",
-    "PROSAFE RS Engineering",
-    "PROSAFE RS Advanced Engineering",
-    "Functional Safety for End Users",
-  ];
+
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -131,10 +144,13 @@ export default function RegistrationForm({
     try {
       const data = new FormData();
       Object.entries(form).forEach(([key, value]) => {
-        data.append(key, value);
+        if (value !== null && value !== undefined) {
+          data.append(key, value.toString());
+        }
       });
-      // Explicitly pass RegistrationType derived from sponsor
-      data.append('registrationType', form.sponsor === 'Organization' ? 'ORGANIZATION' : 'SELF');
+      if (form.selectedBatchId) {
+        data.set("SelectedSlotID", form.selectedBatchId.toString());
+      }
 
       const response = await fetch("/api/register", {
         method: "POST",
@@ -168,8 +184,8 @@ export default function RegistrationForm({
   };
 
   const trainingModes = [
-    { value: "Classroom Training", icon: "🏫", desc: "In-person at YTS facility", selectedCls: "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200", hoverCls: "hover:border-blue-300 hover:shadow-sm" },
-    { value: "Online Training", icon: "💻", desc: "Live virtual instructor-led", selectedCls: "border-green-500 bg-green-50 shadow-md ring-2 ring-green-200", hoverCls: "hover:border-green-300 hover:shadow-sm" },
+    { value: "Offline / Classroom Training", icon: "🏫", desc: "In-person at YTS facility", selectedCls: "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200", hoverCls: "hover:border-blue-300 hover:shadow-sm" },
+    { value: "Online / VILT Training", icon: "💻", desc: "Live virtual instructor-led", selectedCls: "border-green-500 bg-green-50 shadow-md ring-2 ring-green-200", hoverCls: "hover:border-green-300 hover:shadow-sm" },
     { value: "Site Training", icon: "🏭", desc: "Training at your site", selectedCls: "border-orange-500 bg-orange-50 shadow-md ring-2 ring-orange-200", hoverCls: "hover:border-orange-300 hover:shadow-sm" },
     { value: "E-Learning (Self-Paced)", icon: "📱", desc: "On-demand, learn anytime", selectedCls: "border-purple-500 bg-purple-50 shadow-md ring-2 ring-purple-200", hoverCls: "hover:border-purple-300 hover:shadow-sm" },
   ];
@@ -183,7 +199,7 @@ export default function RegistrationForm({
           <div className="px-10 py-8">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-4xl font-bold text-slate-900">
+                <h1 className="text-2xl md:text-4xl font-bold text-slate-900">
                   Yokogawa Training Services
                 </h1>
                 <p className="text-slate-500 mt-3 text-lg">
@@ -336,8 +352,8 @@ export default function RegistrationForm({
                   className={`w-full pl-12 pr-10 py-4 rounded-xl border border-slate-300 appearance-none focus:border-[#673AB7] focus:ring-4 focus:ring-purple-200 outline-none ${selectedCourse ? 'bg-purple-50 text-purple-800 border-purple-300 cursor-not-allowed font-semibold' : ''}`}
                 >
                   <option value="">Select Course</option>
-                  {courses.map((course) => (
-                    <option key={course} value={course}>{course}</option>
+                  {courses.map((courseObj) => (
+                    <option key={courseObj.id} value={courseObj.name}>{courseObj.name}</option>
                   ))}
                 </select>
                 <ChevronDown size={18} className="absolute right-4 top-5 text-slate-400" />
@@ -406,6 +422,86 @@ export default function RegistrationForm({
                   </div>
                 </div>
               )}
+              {/* Dynamic Calendar Selection block restored */}
+              {true && (
+                <div className="mt-8 bg-white rounded-2xl p-6 border-2 border-[#673AB7]/20 shadow-sm">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <CalendarDays size={18} className="text-[#673AB7]" />
+                    Select Training Schedule
+                  </h3>
+                  
+                  {calendarLoading ? (
+                    <div className="text-sm text-slate-500">Loading available schedules...</div>
+                  ) : (
+                    <div>
+                      <select
+                        name="selectedBatchId"
+                        value={form.selectedBatchId || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setForm({ ...form, selectedBatchId: val ? parseInt(val) : null, preferredStartDate: "", preferredEndDate: "" });
+                        }}
+                        disabled={!form.course}
+                        className={`w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#673AB7] focus:ring-4 focus:ring-purple-200 outline-none transition bg-white ${!form.course ? 'opacity-75 cursor-not-allowed bg-slate-50' : ''}`}
+                      >
+                        {!form.course ? (
+                          <option value="">Please select a Course first to view available schedules...</option>
+                        ) : (
+                          <>
+                            <option value="">-- I want to request custom dates --</option>
+                            {batches.filter(b => (b.Title === form.course || b.Title.startsWith(form.course) || b.Title.includes(form.course)) && new Date(b.StartDate) >= new Date()).map(b => (
+                              <option key={b.CalendarID} value={b.CalendarID} disabled={b.CurrentEnrolled >= b.MaxParticipants}>
+                                {new Date(b.StartDate).toLocaleDateString()} to {new Date(b.EndDate).toLocaleDateString()} - {b.Location || 'TBD'} {b.CurrentEnrolled >= b.MaxParticipants ? '(Full)' : `(${b.MaxParticipants - b.CurrentEnrolled} seats left)`}
+                              </option>
+                            ))}
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Preferred Dates — shown if no batch selected */}
+              {!form.selectedBatchId && (
+                <div className="mt-8 bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <CalendarDays size={18} className="text-slate-400" />
+                    Requested Dates (Required)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">From Date</label>
+                      <input
+                        type="date"
+                        id="preferredStartDate"
+                        name="preferredStartDate"
+                        value={form.preferredStartDate || ''}
+                        onChange={handleChange}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#673AB7] focus:ring-4 focus:ring-purple-200 outline-none transition bg-white"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">To Date</label>
+                      <input
+                        type="date"
+                        id="preferredEndDate"
+                        name="preferredEndDate"
+                        value={form.preferredEndDate || ''}
+                        onChange={handleChange}
+                        min={form.preferredStartDate || new Date().toISOString().split('T')[0]}
+                        className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-[#673AB7] focus:ring-4 focus:ring-purple-200 outline-none transition bg-white"
+                        required
+                      />
+                    </div>
+                  </div>
+                  {form.preferredStartDate && form.preferredEndDate && form.preferredStartDate > form.preferredEndDate && (
+                    <p className="text-red-500 text-xs mt-2 font-semibold">From Date cannot be after To Date.</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mb-8">
@@ -456,8 +552,12 @@ export default function RegistrationForm({
             <p className="text-sm text-slate-500">* Required fields. No fees collected at this stage.</p>
             <button
               type="submit"
-              disabled={loading}
-              className="bg-[#673AB7] hover:bg-[#5E35B1] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-lg transition-all hover:scale-105 flex items-center gap-3"
+              disabled={Boolean(
+                loading ||
+                (!form.selectedBatchId && (!form.preferredStartDate || !form.preferredEndDate)) ||
+                (form.preferredStartDate && form.preferredEndDate && form.preferredStartDate > form.preferredEndDate)
+              )}
+              className="bg-[#673AB7] hover:bg-[#5E35B1] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-lg transition-all hover:scale-105 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {loading ? "Submitting..." : "Continue"}
               {!loading && <ArrowRight size={20} />}

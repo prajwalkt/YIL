@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseAndSanitizeFormData } from "../../../library/validation";
 import { getConnection } from "../../../library/db";
 import { getUserFromRequest, requireRole } from "../../../library/auth";
 import { promises as fs } from 'fs';
 import path from 'path';
+import { validateUploadedFile, generateSafeFilename, ALLOWED_MIME_TYPES, verifyMimeByMagic } from "../../../library/fileUpload";
 
 async function ensureTable(pool: any) {
   const result = await pool.request().query(`
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const formData = await request.formData();
+    const formData = await parseAndSanitizeFormData(request);
     const title = formData.get("title")?.toString();
     const description = formData.get("description")?.toString() || "";
     const courseId = formData.get("courseId")?.toString();
@@ -67,8 +69,21 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
     await ensureTable(pool);
 
+    const validation = await validateUploadedFile(file, {
+      allowedMimeTypes: [...ALLOWED_MIME_TYPES.DOCUMENT, ...ALLOWED_MIME_TYPES.PDF, 'application/zip'],
+      maxSizeBytes: 50 * 1024 * 1024, // 50MB
+    });
+
+    if (!validation.valid) {
+      return NextResponse.json({ success: false, message: validation.error }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
-    const safeFilename = Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+    if (!verifyMimeByMagic(buffer, file.type.toLowerCase())) {
+      return NextResponse.json({ success: false, message: "File contents do not match extension" }, { status: 400 });
+    }
+
+    const safeFilename = generateSafeFilename(file.name, 'manual');
     
     // Create public directory for manuals (SCORM or PDF)
     const uploadDir = path.join(process.cwd(), 'public', 'manuals_repo');

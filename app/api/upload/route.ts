@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Readable } from 'stream';
 import { getUserFromRequest } from '../../library/auth';
 import { checkRateLimit, getClientIP } from '../../library/rateLimiter';
+import { validateUploadedFile, ALLOWED_MIME_TYPES, generateSafeFilename } from '../../library/fileUpload';
 
 export async function POST(req: NextRequest) {
   // Auth check: must be authenticated to upload payment proofs
@@ -25,6 +26,21 @@ export async function POST(req: NextRequest) {
 
     if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
 
+
+    
+    const validation = await validateUploadedFile(file, {
+      allowedMimeTypes: ALLOWED_MIME_TYPES.PAYMENT_PROOF,
+      maxSizeBytes: 5 * 1024 * 1024,
+      allowedExtensions: ['.pdf', '.jpg', '.jpeg', '.png'],
+    });
+
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const safeName = generateSafeFilename(file.name, `Receipt_${userName}`);
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -34,12 +50,11 @@ export async function POST(req: NextRequest) {
     });
 
     const drive = google.drive({ version: 'v3', auth });
-    const buffer = Buffer.from(await file.arrayBuffer());
 
     // --- STEP 1: UPLOAD & ATTACH TO PARENT ---
     const response = await drive.files.create({
       requestBody: {
-        name: `Receipt_${userName}_${Date.now()}`,
+        name: safeName,
         parents: ['1xsCzvVY6aO88ILGmo5hdAxI2CtbGbFUB'], 
       },
       media: {

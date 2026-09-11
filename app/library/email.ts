@@ -3,11 +3,12 @@ import nodemailer from 'nodemailer';
 // ─────────────────────────────────────────────────────────
 // Generic Email Sender
 // ─────────────────────────────────────────────────────────
-export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+export async function sendEmail({ to, subject, html, attachments }: { to: string; subject: string; html: string; attachments?: any[] }) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
     console.log('====================================================');
     console.log(`📧 SIMULATED EMAIL TO: ${to}`);
     console.log(`Subject: ${subject}`);
+    if (attachments) console.log(`Attachments: ${attachments.length} files`);
     console.log('----------------------------------------------------');
     const textBody = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
     console.log(textBody);
@@ -25,7 +26,7 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
 
     const info = await transporter.sendMail({
       from: `"Yokogawa Training Services" <${process.env.SMTP_USER}>`,
-      to, subject, html,
+      to, subject, html, attachments
     });
 
     console.log(`Real email sent to ${to}: ${info.messageId}`);

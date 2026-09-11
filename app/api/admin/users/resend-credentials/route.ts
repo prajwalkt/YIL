@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../../library/auth';
 import { getConnection } from '../../../../library/db';
 import { sendMultiChannelNotification } from '../../../../library/notificationService';
@@ -9,7 +10,7 @@ function generateTempPassword(): string {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const lower = 'abcdefghjkmnpqrstuvwxyz';
   const digits = '23456789';
-  const special = '@#$!%*?&';
+  const special = '@#!%*?';
   let password = '';
   password += upper[Math.floor(Math.random() * upper.length)];
   password += lower[Math.floor(Math.random() * lower.length)];
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const { userId } = await request.json();
+    const { userId } = await parseAndSanitizeBody(request);
     if (!userId) {
       return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
     }
@@ -91,6 +92,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Credentials reset and resent successfully via configured channels' });
   } catch (e: any) {
     console.error('Resend credentials failed:', e);
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

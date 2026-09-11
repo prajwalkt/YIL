@@ -48,8 +48,11 @@ export async function GET(request: NextRequest) {
     `;
 
     if (userType) {
-      regQuery += ` AND u.Role = @UserType`;
-      req2.input('UserType', userType);
+      if (userType === 'STUDENT') {
+        regQuery += ` AND (r.SponsoredBy IS NULL OR r.SponsoredBy = 'Self')`;
+      } else if (userType === 'AFFILIATE') {
+        regQuery += ` AND r.SponsoredBy = 'Organization'`;
+      }
     }
     if (courseFilter) {
       regQuery += ` AND r.Course LIKE @Course`;
@@ -101,6 +104,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (e: any) {
     console.error('Reports GET error:', e);
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

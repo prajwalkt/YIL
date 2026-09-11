@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromRequest, requireRole, sanitizeInput, sanitizeEmail, auditLog } from '../../../library/auth';
+import { parseAndSanitizeBody } from '../../../library/validation';
+import { getUserFromRequest, requireRole, sanitizeEmail, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
 // GET /api/trainer/students — list students enrolled in trainer's batches (with search/filter)
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
         e.EnrollmentID, e.Status as EnrollmentStatus, e.EnrolledAt, e.ProgressPercent,
         u.UserID, u.FirstName, u.LastName, u.Email, u.Phone, u.Organization, u.Country,
         tc.CalendarID, tc.Title as BatchTitle, tc.StartDate, tc.EndDate, tc.TrainingType, tc.Location,
-        c.Title as CourseTitle, c.Code as CourseCode
+        c.CourseID, c.Title as CourseTitle, c.Code as CourseCode
       FROM Enrollments e
       JOIN LMS_Users u ON e.StudentID = u.UserID
       JOIN TrainingCalendar tc ON e.CalendarID = tc.CalendarID
@@ -46,9 +47,58 @@ export async function GET(request: NextRequest) {
     query += ` ORDER BY tc.StartDate DESC, u.FirstName ASC`;
     const result = await req.query(query);
 
-    return NextResponse.json({ success: true, students: result.recordset });
+    // Enrich with PDF links
+    const enriched = await Promise.all(result.recordset.map(async (student: any) => {
+      // Get Registration ID for Registration PDF
+      const reg = await pool.request()
+        .input('UserID', student.UserID)
+        .input('CourseTitle', student.CourseTitle)
+        .query(`SELECT TOP 1 Id FROM Registrations WHERE LinkedUserID = @UserID AND Course = @CourseTitle ORDER BY CreatedAt DESC`);
+      
+      const regId = reg.recordset.length > 0 ? reg.recordset[0].Id : null;
+      const regPdf = regId ? `/uploads/registrations/Registration_${student.UserID}_${regId}.pdf` : null;
+
+      // Get Assessment Result ID
+      const ar = await pool.request()
+        .input('UserID', student.UserID || 0)
+        .input('CourseID', student.CourseID || 0)
+        .query(`
+          SELECT TOP 1 ar.ResultID 
+          FROM AssessmentResults ar
+          JOIN Assessments a ON ar.AssessmentID = a.AssessmentID
+          WHERE ar.StudentID = @UserID AND a.CourseID = @CourseID
+          ORDER BY ar.AttemptedAt DESC
+        `);
+        
+      const resultId = ar.recordset.length > 0 ? ar.recordset[0].ResultID : null;
+      const assessPdf = resultId ? `/uploads/reports/Assessment_Result_${student.UserID}_${resultId}.pdf` : null;
+
+      // Get Feedback Result
+      const fb = await pool.request()
+        .input('UserID', student.UserID)
+        .input('CourseTitle', student.CourseTitle || '')
+        .query(`
+          SELECT TOP 1 FeedbackID FROM Feedback 
+          WHERE StudentID = @UserID 
+            AND CourseName = @CourseTitle
+          ORDER BY SubmittedAt DESC
+        `);
+        
+      const fbId = fb.recordset.length > 0 ? fb.recordset[0].FeedbackID : null;
+      const fbPdf = fbId ? `/uploads/reports/Feedback_Result_${student.UserID}_${fbId}.pdf` : null;
+
+      return {
+        ...student,
+        RegistrationPDF: regPdf,
+        AssessmentPDF: assessPdf,
+        FeedbackPDF: fbPdf,
+        AssessmentResultID: resultId
+      };
+    }));
+
+    return NextResponse.json({ success: true, students: enriched });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -59,7 +109,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { studentId, calendarId } = body;
 
     if (!studentId || !calendarId) {
@@ -111,7 +161,7 @@ export async function POST(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'STUDENT_ENROLLED', 'TRAINER', `Enrolled student ${studentId} into batch ${calendarId}`, ip);
     return NextResponse.json({ success: true, message: 'Student enrolled successfully' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -122,7 +172,7 @@ export async function PUT(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { enrollmentId, progress, status } = body;
 
     if (!enrollmentId) {
@@ -150,7 +200,7 @@ export async function PUT(request: NextRequest) {
     let setParts: string[] = [];
 
     if (progress !== undefined) { req.input('Progress', Number(progress)); setParts.push('ProgressPercent = @Progress'); }
-    if (status !== undefined) { req.input('Status', sanitizeInput(status)); setParts.push('Status = @Status'); }
+    if (status !== undefined) { req.input('Status', status); setParts.push('Status = @Status'); }
 
     if (setParts.length === 0) {
       return NextResponse.json({ success: false, message: 'Nothing to update' }, { status: 400 });
@@ -161,7 +211,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Student record updated successfully' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -208,6 +258,6 @@ export async function DELETE(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'STUDENT_REMOVED', 'TRAINER', `Removed enrollment ${enrollmentId}`, ip);
     return NextResponse.json({ success: true, message: 'Student removed from batch' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, announcements: res.recordset });
     }
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const { title, body, targetAudience } = await request.json();
+    const { title, body, targetAudience } = await parseAndSanitizeBody(request);
     if (!title || !body) return NextResponse.json({ success: false, message: 'Title and body are required' }, { status: 400 });
 
     const pool = await getConnection();
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'ANNOUNCEMENT_CREATED', 'COMMUNICATION', `Created announcement: ${title}`, ip);
     return NextResponse.json({ success: true, message: 'Announcement broadcasted successfully' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -75,6 +76,6 @@ export async function DELETE(request: NextRequest) {
     await pool.request().input('ID', id).query(`DELETE FROM Announcements WHERE AnnouncementID = @ID`);
     return NextResponse.json({ success: true, message: 'Announcement deleted' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

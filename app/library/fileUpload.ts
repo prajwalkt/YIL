@@ -2,11 +2,12 @@
 // Production-ready file upload security validation utilities
 
 import path from 'path';
+import { randomUUID } from 'crypto';
 
 // ──────────────────────────────────────────────
 // Dangerous file extension blocklist
 // ──────────────────────────────────────────────
-const BLOCKED_EXTENSIONS = new Set([
+const DANGEROUS_EXTENSIONS = new Set([
   '.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.vbe',
   '.js', '.jse', '.wsf', '.wsh', '.msi', '.msc', '.dll', '.sys',
   '.drv', '.cpl', '.inf', '.reg', '.ps1', '.sh', '.bash', '.zsh',
@@ -68,45 +69,60 @@ export interface FileValidationResult {
   error?: string;
 }
 
-export function validateUploadedFile(
+export async function validateUploadedFile(
   file: File,
   options: FileValidationOptions
-): FileValidationResult {
-  const ext = path.extname(file.name).toLowerCase();
-  const mime = file.type.toLowerCase();
-
-  // 1. Block dangerous extensions
-  if (BLOCKED_EXTENSIONS.has(ext)) {
-    return { valid: false, error: `File type '${ext}' is not allowed for security reasons` };
-  }
-
-  // 2. Validate extension if allowedExtensions provided
-  if (options.allowedExtensions && options.allowedExtensions.length > 0) {
-    if (!options.allowedExtensions.includes(ext)) {
-      return {
-        valid: false,
-        error: `Invalid file extension. Allowed: ${options.allowedExtensions.join(', ')}`,
-      };
+): Promise<FileValidationResult> {
+  const fileName = file.name.toLowerCase();
+  
+  // 1. Reject files with dangerous extensions anywhere in the name (e.g. test.exe.jpg)
+  const parts = fileName.split('.');
+  if (parts.length > 2) {
+    for (let i = 1; i < parts.length; i++) {
+      if (DANGEROUS_EXTENSIONS.has('.' + parts[i])) {
+        return { valid: false, error: 'Invalid or unsupported file type.' };
+      }
     }
   }
 
-  // 3. Validate MIME type against allowlist
-  if (!options.allowedMimeTypes.includes(mime)) {
-    return {
-      valid: false,
-      error: `File type '${mime}' is not allowed. Allowed: ${options.allowedMimeTypes.join(', ')}`,
-    };
+  const ext = parts.length > 1 ? '.' + parts[parts.length - 1] : '';
+
+  // 2. Reject if it directly has a dangerous extension
+  if (DANGEROUS_EXTENSIONS.has(ext)) {
+    return { valid: false, error: 'Invalid or unsupported file type.' };
   }
 
-  // 4. File size limit
+  // 3. Strict Whitelist of Extensions
+  if (options.allowedExtensions && options.allowedExtensions.length > 0) {
+    if (!options.allowedExtensions.includes(ext)) {
+      return { valid: false, error: 'Invalid or unsupported file type.' };
+    }
+  }
+
+  // 4. Validate MIME type declaration against allowlist
+  const declaredMime = file.type.toLowerCase();
+  if (!options.allowedMimeTypes.includes(declaredMime)) {
+    return { valid: false, error: 'Invalid or unsupported file type.' };
+  }
+
+  // 5. File size limits and empty checks
+  if (file.size === 0) {
+    return { valid: false, error: 'Empty file is not allowed' };
+  }
   if (file.size > options.maxSizeBytes) {
     const limitMB = (options.maxSizeBytes / (1024 * 1024)).toFixed(0);
     return { valid: false, error: `File size exceeds ${limitMB}MB limit` };
   }
 
-  // 5. Reject empty files
-  if (file.size === 0) {
-    return { valid: false, error: 'Empty file is not allowed' };
+  // 6. Magic Bytes Verification (Do not trust Content-Type header)
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const isMagicValid = verifyMimeByMagic(buffer, declaredMime);
+    if (!isMagicValid) {
+      return { valid: false, error: 'Invalid or unsupported file type.' };
+    }
+  } catch (e) {
+    return { valid: false, error: 'Failed to verify file contents.' };
   }
 
   return { valid: true };
@@ -117,8 +133,6 @@ export function validateUploadedFile(
 // ──────────────────────────────────────────────
 export function generateSafeFilename(originalName: string, prefix?: string): string {
   const ext = path.extname(originalName).toLowerCase();
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 10);
   const safePrefix = prefix ? prefix.replace(/[^a-zA-Z0-9_-]/g, '_') : 'upload';
-  return `${safePrefix}_${timestamp}_${random}${ext}`;
+  return `${safePrefix}_${randomUUID()}${ext}`;
 }

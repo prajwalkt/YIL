@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
       analytics: avgResult.recordset[0]
     });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ success: false, message: 'Auth required' }, { status: 401 });
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { participantName, courseId, trainerId, trainerName, overallScore, contentScore, trainerScore, facilityScore, remarks, trainingDate } = body;
 
     if (!overallScore) return NextResponse.json({ success: false, message: 'Overall score required' }, { status: 400 });
@@ -79,6 +80,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Feedback submitted' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

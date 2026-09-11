@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
     const result = await pool.request().query('SELECT TOP 1 * FROM OrganizationBranding ORDER BY BrandID DESC');
     return NextResponse.json({ success: true, branding: result.recordset[0] || null });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -18,7 +19,7 @@ export async function PUT(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const data = await request.json();
+    const data = await parseAndSanitizeBody(request);
     const pool = await getConnection();
 
     await pool.request()
@@ -44,6 +45,6 @@ export async function PUT(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'BRANDING_UPDATED', 'ADMIN', `Updated organization branding`, ip);
     return NextResponse.json({ success: true, message: 'Branding updated successfully' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

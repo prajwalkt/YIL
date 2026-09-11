@@ -34,6 +34,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, participants: result.recordset });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

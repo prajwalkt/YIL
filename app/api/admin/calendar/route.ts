@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromRequest, requireRole, sanitizeInput, auditLog } from '../../../library/auth';
+import { parseAndSanitizeBody } from '../../../library/validation';
+import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
 export async function GET(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     const result = await pool.request().query(query);
     return NextResponse.json({ success: true, calendar: result.recordset });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { courseId, title, trainingType, startDate, endDate, trainerId, trainerName, location, maxParticipants, notes } = body;
 
     if (!title || !trainingType || !startDate || !endDate) {
@@ -83,17 +84,17 @@ export async function POST(request: NextRequest) {
     }
 
     await pool.request()
-      .input('CourseID', courseId || null).input('Title', sanitizeInput(title))
+      .input('CourseID', courseId || null).input('Title', title)
       .input('TrainingType', trainingType).input('StartDate', startDate).input('EndDate', endDate)
-      .input('TrainerID', trainerId || null).input('TrainerName', sanitizeInput(trainerName || ''))
-      .input('Location', sanitizeInput(location || '')).input('MaxParticipants', Number(maxParticipants) || 20)
-      .input('Notes', sanitizeInput(notes || ''))
+      .input('TrainerID', trainerId || null).input('TrainerName', trainerName || '')
+      .input('Location', location || '').input('MaxParticipants', Number(maxParticipants) || 20)
+      .input('Notes', notes || '')
       .query(`INSERT INTO TrainingCalendar (CourseID,Title,TrainingType,StartDate,EndDate,TrainerID,TrainerName,Location,MaxParticipants,Notes) VALUES (@CourseID,@Title,@TrainingType,@StartDate,@EndDate,@TrainerID,@TrainerName,@Location,@MaxParticipants,@Notes)`);
 
     await auditLog(user!.userId, user!.email, 'CALENDAR_CREATED', 'CALENDAR', `Created: ${title} on ${startDate}`, ip);
     return NextResponse.json({ success: true, message: 'Training scheduled' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -103,7 +104,7 @@ export async function PUT(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { calendarId, action, title, trainingType, startDate, endDate, trainerId, trainerName, location, maxParticipants, status, notes, enrollmentId } = body;
     if (!calendarId) return NextResponse.json({ success: false, message: 'Calendar ID required' }, { status: 400 });
 
@@ -152,17 +153,17 @@ export async function PUT(request: NextRequest) {
     }
 
     await pool.request()
-      .input('CalendarID', Number(calendarId)).input('Title', sanitizeInput(title || ''))
-      .input('TrainingType', trainingType || 'CILT').input('StartDate', startDate).input('EndDate', endDate)
-      .input('TrainerID', trainerId || null).input('TrainerName', sanitizeInput(trainerName || ''))
-      .input('Location', sanitizeInput(location || '')).input('MaxParticipants', Number(maxParticipants) || 20)
-      .input('Status', status || 'SCHEDULED').input('Notes', sanitizeInput(notes || ''))
+      .input('CalendarID', Number(calendarId)).input('Title', title || '')
+      .input('TrainingType', trainingType).input('StartDate', startDate).input('EndDate', endDate)
+      .input('TrainerID', trainerId || null).input('TrainerName', trainerName || '')
+      .input('Location', location || '').input('MaxParticipants', Number(maxParticipants) || 20)
+      .input('Status', status || 'SCHEDULED').input('Notes', notes || '')
       .query(`UPDATE TrainingCalendar SET Title=@Title,TrainingType=@TrainingType,StartDate=@StartDate,EndDate=@EndDate,TrainerID=@TrainerID,TrainerName=@TrainerName,Location=@Location,MaxParticipants=@MaxParticipants,Status=@Status,Notes=@Notes WHERE CalendarID=@CalendarID`);
 
     await auditLog(user!.userId, user!.email, 'CALENDAR_UPDATED', 'CALENDAR', `Updated calendar ${calendarId}`, ip);
     return NextResponse.json({ success: true, message: 'Calendar updated' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -181,6 +182,6 @@ export async function DELETE(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'CALENDAR_DELETED', 'CALENDAR', `Cancelled calendar ${calendarId}`, ip);
     return NextResponse.json({ success: true, message: 'Training cancelled' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

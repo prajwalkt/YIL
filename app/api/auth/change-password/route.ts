@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, comparePassword, hashPassword, validatePasswordStrength, auditLog, signToken } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { currentPassword, newPassword, confirmPassword } = body;
 
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -61,20 +62,18 @@ export async function POST(request: NextRequest) {
       role: dbUser.Role,
       firstName: dbUser.FirstName,
       lastName: dbUser.LastName,
+      sessionId: user.sessionId,
+      mustChangePassword: false,
     });
 
     try {
       await pool.request()
         .input('Hash', newHash)
-        .input('Token', newToken)
-        .input('UserID', user.userId)
-        .query(`UPDATE LMS_Users SET PasswordHash = @Hash, MustChangePassword = 0, ActiveSessionToken = @Token WHERE UserID = @UserID`);
-    } catch {
-      // Fallback if ActiveSessionToken column doesn't exist yet
-      await pool.request()
-        .input('Hash', newHash)
         .input('UserID', user.userId)
         .query(`UPDATE LMS_Users SET PasswordHash = @Hash, MustChangePassword = 0 WHERE UserID = @UserID`);
+    } catch (err) {
+      console.error('Failed to update password hash in DB', err);
+      throw err; // Let the outer catch handle it
     }
 
     await auditLog(user.userId, user.email, 'CHANGE_PASSWORD_SUCCESS', 'AUTH', 'Password changed successfully', ip, 'SUCCESS');
@@ -83,13 +82,20 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Password changed successfully',
       token: newToken,
+      user: {
+        userId: user.userId,
+        email: dbUser.Email,
+        role: dbUser.Role,
+        firstName: dbUser.FirstName,
+        lastName: dbUser.LastName,
+      },
       redirectTo: getRedirectByRole(dbUser.Role),
     });
 
     // Update cookie
     response.cookies.set('auth_token', newToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: request.headers.get('x-forwarded-proto') === 'https' || request.nextUrl.protocol === 'https:',
       sameSite: 'strict',
       maxAge: 8 * 60 * 60,
       path: '/',
@@ -98,6 +104,14 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (e: any) {
     console.error('Change password error:', e);
+    
+    if (e.name === 'ValidationError' && e.message === 'MALICIOUS_PAYLOAD_DETECTED') {
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid input detected: request rejected for security reasons.',
+      }, { status: 400 });
+    }
+
     return NextResponse.json({ success: false, message: 'Failed to change password' }, { status: 500 });
   }
 }

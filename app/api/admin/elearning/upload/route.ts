@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeFormData } from '../../../../library/validation';
 import { getUserFromRequest, requireRole } from '../../../../library/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, extname } from 'path';
+import { validateUploadedFile, generateSafeFilename, ALLOWED_MIME_TYPES, verifyMimeByMagic } from '../../../../library/fileUpload';
 
 const MAX_SIZE = 500 * 1024 * 1024; // 500 MB
 
@@ -11,7 +13,7 @@ export async function POST(request: NextRequest) {
   if (!requireRole(user, 'ADMIN')) return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 });
 
   try {
-    const formData = await request.formData();
+    const formData = await parseAndSanitizeFormData(request);
     const file = formData.get('file') as File | null;
     const courseId = formData.get('courseId') as string | null;
     const contentType = (formData.get('contentType') as string | null) || 'VIDEO';
@@ -19,23 +21,28 @@ export async function POST(request: NextRequest) {
     if (!file) return NextResponse.json({ success: false, message: 'No file uploaded' }, { status: 400 });
     if (!courseId) return NextResponse.json({ success: false, message: 'courseId is required' }, { status: 400 });
 
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ success: false, message: 'File size exceeds 500 MB limit' }, { status: 413 });
+    let allowedMimes: string[] = [];
+    if (contentType === 'VIDEO') allowedMimes = ALLOWED_MIME_TYPES.VIDEO;
+    else if (contentType === 'PDF') allowedMimes = ALLOWED_MIME_TYPES.PDF;
+    else if (contentType === 'DOCUMENT') allowedMimes = [...ALLOWED_MIME_TYPES.DOCUMENT, ...ALLOWED_MIME_TYPES.PDF];
+    else allowedMimes = [...ALLOWED_MIME_TYPES.VIDEO, ...ALLOWED_MIME_TYPES.DOCUMENT, ...ALLOWED_MIME_TYPES.PDF];
+
+    const validation = await validateUploadedFile(file, {
+      allowedMimeTypes: allowedMimes,
+      maxSizeBytes: MAX_SIZE,
+    });
+
+    if (!validation.valid) {
+      return NextResponse.json({ success: false, message: validation.error }, { status: 400 });
     }
 
-    // Validate file type
-    const ext = extname(file.name).toLowerCase();
-    const allowedVideo = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
-    const allowedDoc = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'];
-    const isVideo = contentType === 'VIDEO' && allowedVideo.includes(ext);
-    const isDoc = (contentType === 'PDF' || contentType === 'DOCUMENT') && allowedDoc.includes(ext);
-
-    if (!isVideo && !isDoc) {
-      return NextResponse.json({
-        success: false,
-        message: `Invalid file type. Videos: ${allowedVideo.join(', ')} | Documents: ${allowedDoc.join(', ')}`,
-      }, { status: 400 });
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    if (!verifyMimeByMagic(buffer, file.type.toLowerCase())) {
+      return NextResponse.json({ success: false, message: "File contents do not match extension" }, { status: 400 });
     }
+
+    const isVideo = contentType === 'VIDEO';
 
     // Build destination path
     const subDir = isVideo ? 'videos' : 'docs';
@@ -46,24 +53,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Unique filename
-    const timestamp = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const fileName = `${timestamp}_${safeName}`;
-    const filePath = `/uploads/elearning/${courseId}/${subDir}/${fileName}`;
+    const safeName = generateSafeFilename(file.name, isVideo ? 'video' : 'doc');
+    const filePath = `/uploads/elearning/${courseId}/${subDir}/${safeName}`;
     const absPath = join(process.cwd(), 'public', filePath);
 
-    const bytes = await file.arrayBuffer();
-    await writeFile(absPath, Buffer.from(bytes));
+    await writeFile(absPath, buffer);
 
     return NextResponse.json({
       success: true,
       filePath,
-      fileName,
+      fileName: safeName,
       fileSize: file.size,
       message: 'File uploaded successfully',
     });
   } catch (e: any) {
     console.error('Upload error:', e);
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

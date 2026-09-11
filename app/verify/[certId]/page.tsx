@@ -12,7 +12,7 @@ export default function CertificateVerification() {
 
   useEffect(() => {
     if (!certId) return;
-    fetch(`/api/certificates/verify?certNo=${certId}`)
+    fetch(`/api/certificates/verify?certNo=${certId}`, { credentials: 'include' })
       .then(res => res.json())
       .then(d => {
         if (d.success) setData(d.certificate);

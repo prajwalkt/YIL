@@ -941,7 +941,11 @@ function ApprovalsTab() {
 
   const [remarksModal, setRemarksModal] = useState<any>(null);
   const [historyModal, setHistoryModal] = useState<any>(null);
+  const [editDatesModal, setEditDatesModal] = useState<any>(null);
   const [remarks, setRemarks] = useState('');
+
+  const [trainers, setTrainers] = useState<any[]>([]);
+  const [trainerId, setTrainerId] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -949,6 +953,11 @@ function ApprovalsTab() {
     const res = await fetch('/api/admin/approvals', { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.success) setRegs(data.registrations);
+    
+    const resT = await fetch('/api/admin/users?role=TRAINER', { headers: { Authorization: `Bearer ${token}` } });
+    const dataT = await resT.json();
+    if (dataT.success) setTrainers(dataT.users);
+    
     setLoading(false);
   }, []);
 
@@ -959,10 +968,27 @@ function ApprovalsTab() {
     await fetch('/api/admin/approvals', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ registrationId: id, action, remarks })
+      body: JSON.stringify({ registrationId: id, action, remarks, trainerId })
     });
     setRemarksModal(null);
     setRemarks('');
+    setTrainerId('');
+    load();
+  };
+
+  const processEditDates = async (id: number, start: string, end: string, rem: string) => {
+    const token = localStorage.getItem('auth_token') || '';
+    const res = await fetch('/api/admin/date-approvals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ registrationId: id, action: 'MODIFY', finalStartDate: start, finalEndDate: end, remarks: rem })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.message || 'Failed to update dates');
+      return;
+    }
+    setEditDatesModal(null);
     load();
   };
 
@@ -1026,6 +1052,7 @@ function ApprovalsTab() {
                   <td className="px-5 py-3.5">
                     <div className="flex gap-2">
                       <button onClick={() => setHistoryModal(r)} className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors" title="History"><Activity size={14}/></button>
+                      <button onClick={() => setEditDatesModal({ id: r.Id, origStart: r.OriginalStartDate, origEnd: r.OriginalEndDate, start: r.OriginalStartDate ? new Date(r.OriginalStartDate).toISOString().split('T')[0] : '', end: r.OriginalEndDate ? new Date(r.OriginalEndDate).toISOString().split('T')[0] : '', remarks: r.ApprovalRemarks || '', title: 'Edit Dates' })} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">Edit Dates</button>
                       <button onClick={() => setRemarksModal({ id: r.Id, action: 'APPROVE', title: 'Approve Registration' })} className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors">Approve</button>
                       <button onClick={() => setRemarksModal({ id: r.Id, action: 'REJECT', title: 'Reject Registration' })} className="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">Reject</button>
                     </div>
@@ -1041,6 +1068,17 @@ function ApprovalsTab() {
       {remarksModal && (
         <Modal title={remarksModal.title} onClose={() => { setRemarksModal(null); setRemarks(''); }}>
           <div className="space-y-4">
+            {remarksModal.action === 'APPROVE' && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Assign Trainer</label>
+                <select value={trainerId} onChange={e => setTrainerId(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100">
+                  <option value="">No Trainer Assigned</option>
+                  {trainers.map(t => (
+                    <option key={t.UserID} value={t.UserID}>{t.FirstName} {t.LastName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks (Optional)</label>
               <textarea value={remarks} onChange={e => setRemarks(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100 h-24" placeholder="Enter any comments..."></textarea>
@@ -1081,6 +1119,37 @@ function ApprovalsTab() {
                 <p className="text-xs font-bold text-gray-400">LATEST REMARKS</p>
                 <p className="text-sm text-gray-700">{historyModal.ApprovalRemarks || 'No remarks added.'}</p>
               </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {editDatesModal && (
+        <Modal title={editDatesModal.title} onClose={() => setEditDatesModal(null)}>
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <p className="text-xs font-bold text-gray-500 uppercase">Original Requested Dates</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {editDatesModal.origStart ? new Date(editDatesModal.origStart).toLocaleDateString() : 'N/A'} - {editDatesModal.origEnd ? new Date(editDatesModal.origEnd).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">New Start Date</label>
+                <input type="date" value={editDatesModal.start} onChange={e => setEditDatesModal({...editDatesModal, start: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">New End Date</label>
+                <input type="date" value={editDatesModal.end} onChange={e => setEditDatesModal({...editDatesModal, end: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks</label>
+              <textarea value={editDatesModal.remarks} onChange={e => setEditDatesModal({...editDatesModal, remarks: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100 h-20" placeholder="Reason for changing dates..."></textarea>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => processEditDates(editDatesModal.id, editDatesModal.start, editDatesModal.end, editDatesModal.remarks)} className="flex-1 bg-[#004098] text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700">Save Final Dates</button>
+              <button onClick={() => setEditDatesModal(null)} className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-50">Cancel</button>
             </div>
           </div>
         </Modal>

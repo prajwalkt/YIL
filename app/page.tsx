@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import RegistrationForm from "../components/RegistrationForm";
 import BackButton from "../components/BackButton";
+import PasswordPolicy from "./components/PasswordPolicy";
+import DynamicCalendar from "../components/DynamicCalendar";
 
 // --- Interfaces ---
 interface Course {
@@ -30,6 +32,7 @@ export default function YTSProject() {
   const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false);
   const [passwordInput, setPasswordInput] = useState<string>("");
   const [loginError, setLoginError] = useState<boolean>(false);
+  const [policyAccepted, setPolicyAccepted] = useState<boolean>(false);
   const [totalRegistrations, setTotalRegistrations] = useState<number>(0);
 
   // --- UI STATE ---
@@ -47,7 +50,7 @@ export default function YTSProject() {
   const [selectedModeForReg, setSelectedModeForReg] = useState<string>("");
 
   // --- CONFIGURATION ---
-  const ADMIN_PASSWORD = "4xg8i3h0rf265";
+  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_FRONTEND_ADMIN_PASSWORD || "fallback";
   const INITIAL_REGISTRATION_URL = "https://forms.gle/qU6ahK1KYA9GVr1E8";
   const PDF_UPLOAD_FORM_URL = "https://docs.google.com/forms/d/1MERTzKD9jY0DXhmGxoJiRq12u3ujfXLbXQu7tRUfjIo/viewform?embedded=true";
   const getDriveImageUrl = (id: string): string => `https://drive.google.com/thumbnail?authuser=0&sz=w1600&id=${id}`;
@@ -79,7 +82,7 @@ export default function YTSProject() {
     if (showAdmin) {
       const fetchCount = async () => {
         try {
-          const res = await fetch('/api/registrations_count');
+          const res = await fetch('/api/registrations_count', { credentials: 'include' });
           const data = await res.json();
           if (data.count !== undefined) {
             setTotalRegistrations(data.count);
@@ -150,44 +153,22 @@ export default function YTSProject() {
     { src: "/images/blr-training/8.jpeg", title: "DCS Engineering Panel" }
   ];
 
-  // Configured to point directly to clean lowercase path items inside public/agendas/
-  const baseCourses: Course[] = [
-    { id: 1, name: "CENTUM VP DCS Operation", code: "VPOP", days: "3", agendaPath: "/agendas/vpop.pdf" },
-    { id: 2, name: "CENTUM VP DCS Fundamentals", code: "VPFD", days: "5", agendaPath: "/agendas/FIPC.pdf" },
-    { id: 3, name: "CENTUM VP DCS Engineering", code: "VPEG", days: "5", agendaPath: "/agendas/vpeg.pdf" },
-    { id: 4, name: "CENTUM VP DCS Fundamentals & Engineering", code: "VPFE", days: "5", agendaPath: "/agendas/vpfe.pdf" },
-    { id: 5, name: "CENTUM VP DCS Engineering & Maintenance", code: "VPEM", days: "10", agendaPath: "/agendas/vpem.pdf" },
-    { id: 6, name: "CENTUM VP DCS Maintenance", code: "VPMN", days: "3", agendaPath: "/agendas/vpmn.pdf" },
-    { id: 7, name: "CENTUM VP DCS Advanced Engineering", code: "VPAE", days: "5", agendaPath: "/agendas/vpae.pdf" },
-    { id: 8, name: "CENTUM VP DCS Batch Engineering", code: "VBEG", days: "5", agendaPath: "/agendas/vbeg.pdf" },
-    { id: 9, name: "CENTUM VP DCS AD Suite Engineering", code: "VPAD", days: "5", agendaPath: "/agendas/vpad.pdf" },
-    { id: 10, name: "Consolidated Alarm Management System", code: "CAMS", days: "2", agendaPath: "/agendas/cams.pdf" },
-    { id: 11, name: "SEBOL Programming", code: "SEBL", days: "3", agendaPath: "/agendas/sebl.pdf" },
-    { id: 12, name: "STARDOM NCS with FAST/TOOLS SCADA", code: "STFT", days: "5", agendaPath: "/agendas/stft.pdf" },
-    { id: 13, name: "STARDOM NCS with CI Server", code: "STCI", days: "5", agendaPath: "/agendas/stci.pdf" },
-    { id: 14, name: "STARDOM NCS Engineering", code: "STEG", days: "5", agendaPath: "/agendas/steg.pdf" },
-    { id: 15, name: "FAST/TOOLS SCADA Operations", code: "FTOP", days: "2", agendaPath: "/agendas/ftop.pdf" },
-    { id: 16, name: "FAST/TOOLS SCADA Engineering", code: "FTEG", days: "5", agendaPath: "/agendas/fteg.pdf" },
-    { id: 17, name: "CI Server Operations", code: "CIOP", days: "2", agendaPath: "/agendas/ciop.pdf" },
-    { id: 18, name: "CI Server Engineering", code: "CIEG", days: "5", agendaPath: "/agendas/cieg.pdf" },
-    { id: 19, name: "Field Bus basics & Engineering", code: "FFEG", days: "3", agendaPath: "/agendas/ffeg.pdf" },
-    { id: 20, name: "Field Bus Engineering & PRM", code: "FPRM", days: "5", agendaPath: "/agendas/fprm.pdf" },
-    { id: 21, name: "PROFIBUS Basics and Engineering", code: "PBUS", days: "2", agendaPath: "/agendas/pbus.pdf" },
-    { id: 22, name: "Industrial Communication Protocols", code: "INCP", days: "3", agendaPath: "/agendas/incp.pdf" },
-    { id: 24, name: "Field Instruments for Process Control", code: "FIPC", days: "5", agendaPath: "/agendas/fipc.pdf" },
-    { id: 25, name: "Asset Management Software- PRM", code: "PRMB", days: "3", agendaPath: "/agendas/prmb.pdf" },
-    { id: 26, name: "Cyber Security for Industrial Control System", code: "CSIC", days: "3", agendaPath: "/agendas/csic.pdf" },
-    { id: 27, name: "PROSAFE RS Operations", code: "RSOP", days: "2", agendaPath: "/rsop.pdf" },
-    { id: 28, name: "PROSAFE-RS Engineering with FAST/TOOLS SCADA", code: "RSFT", days: "5", agendaPath: "/agendas/rsft.pdf" },
-    { id: 29, name: "PROSAFE-RS Engineering with CI Server", code: "RSCI", days: "5", agendaPath: "/agendas/rsci.pdf" },
-    { id: 30, name: "PROSAFE RS Engineering", code: "PPRS", days: "5", agendaPath: "/agendas/pprs.pdf" },
-    { id: 31, name: "PROSAFE-RS Advanced Engineering", code: "RSAE", days: "5", agendaPath: "/agendas/rsae.pdf" },
-    { id: 32, name: "PROSAFE-RS with ADsuite Engineering", code: "RSAD", days: "2", agendaPath: "/agendas/rsad.pdf" },
-    { id: 34, name: "Functional Safety for End Users", code: "FSUS", days: "2", agendaPath: "/agendas/fsus.pdf" },
-  ];
+  // Configured to load dynamically from the database
+  const [baseCourses, setBaseCourses] = useState<Course[]>([]);
+
+  useEffect(() => {
+    fetch('/api/register')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.courses)) {
+          setBaseCourses(d.courses);
+        }
+      })
+      .catch(err => console.error("Failed to load courses:", err));
+  }, []);
 
   const onlineCourses = baseCourses.filter(c => !["FIPC", "ISAB", "TFSE", "FSUS"].includes(c.code));
-  const isTrainingActive = ["Offline Training", "Online Training", "E-learning Course"].includes(activeTab);
+  const isTrainingActive = ["Offline Training", "Online Training", "E-learning Course", "Site Training"].includes(activeTab);
 
   if (showAdmin) {
     return (
@@ -330,7 +311,27 @@ export default function YTSProject() {
                 onChange={(e) => setPasswordInput(e.target.value)}
               />
               {loginError && <p className="text-red-500 text-xs text-center font-bold uppercase tracking-widest animate-bounce">Access Denied</p>}
-              <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-xs">Authorize Access</button>
+              
+              <div className="flex flex-col gap-2 mt-4 text-left">
+                <PasswordPolicy dark={true} />
+                <label className="flex items-start gap-2 cursor-pointer mt-2 group">
+                  <div className="relative flex items-center justify-center mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={policyAccepted}
+                      onChange={(e) => setPolicyAccepted(e.target.checked)}
+                      className="appearance-none w-4 h-4 rounded border border-zinc-600 bg-zinc-800 checked:bg-amber-500 checked:border-amber-500 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                      required
+                    />
+                    <CheckCircle2 size={12} className={`absolute text-zinc-900 pointer-events-none transition-opacity ${policyAccepted ? 'opacity-100' : 'opacity-0'}`} />
+                  </div>
+                  <span className="text-zinc-400 text-[10px] font-medium group-hover:text-zinc-200 transition-colors uppercase tracking-widest">
+                    I acknowledge the password policy
+                  </span>
+                </label>
+              </div>
+
+              <button type="submit" disabled={!policyAccepted} className="w-full bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-xs disabled:opacity-50 disabled:cursor-not-allowed">Authorize Access</button>
 
               {/* SECURE APP-ROUTER HANDSHAKE REDIRECT LINK */}
               <div className="pt-4 text-center border-t border-zinc-800/50 mt-4">
@@ -503,20 +504,55 @@ export default function YTSProject() {
         {activeTab === "E-learning Course" && (
           <div className="animate-in fade-in space-y-8 max-w-5xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-light text-[#004098]">E-Learning Courses</h2>
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-2">
-              <p className="text-blue-800 text-sm font-semibold">🎓 Self-paced learning — access course materials anytime after enrollment approval.</p>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-3xl p-6 shadow-sm mb-6 flex items-start gap-4">
+              <div className="bg-white p-3 rounded-xl shadow-sm text-blue-600 shrink-0">
+                <MonitorPlay size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-blue-900 mb-2">Self-paced Learning Platform</h3>
+                <p className="text-blue-800 text-sm leading-relaxed mb-4">Master Yokogawa systems at your own pace. Each module includes comprehensive video tutorials, interactive simulators, and knowledge check assessments.</p>
+                <div className="flex flex-wrap gap-3">
+                  <span className="text-xs font-bold text-blue-700 bg-blue-100/50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"><PlayCircle size={14}/> Video Modules</span>
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"><CheckCircle2 size={14}/> Auto-graded Assessments</span>
+                  <span className="text-xs font-bold text-purple-700 bg-purple-100/50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"><Award size={14}/> Digital Certificate</span>
+                </div>
+              </div>
             </div>
-            <div className="space-y-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {baseCourses.map((course) => (
-                <div key={`el-${course.id}`} className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 hover:border-blue-300 hover:shadow-xl transition-all group relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-                  <div className="w-full md:w-24 h-16 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 font-black shrink-0">{course.code}</div>
-                  <div className="flex-1 text-center md:text-left">
-                    <h3 className="text-xl font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{course.name}</h3>
-                    <span className="flex items-center gap-1 text-sm text-slate-400 mt-2"><Clock size={14}/> Self-Paced · E-Learning</span>
+                <div key={`el-${course.id}`} className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col hover:border-blue-400 hover:shadow-xl transition-all group">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-sm">{course.code}</div>
+                    <div className="bg-slate-100 rounded-full px-3 py-1 text-xs font-bold text-slate-500 flex items-center gap-1.5"><Clock size={12}/> 90 Days Access</div>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto shrink-0">
-                    <button onClick={() => startRegistration(course.name, activeTab)} className="w-full sm:w-auto bg-orange-500 text-white hover:bg-blue-600 font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-all">Register Now <ArrowRight size={18}/></button>
+                  <h3 className="text-xl font-bold text-slate-800 mb-2 leading-tight group-hover:text-blue-600 transition-colors">{course.name}</h3>
+                  <div className="mt-auto pt-6 space-y-3">
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className="w-[15%] h-full bg-blue-200 group-hover:bg-blue-500 transition-colors duration-1000"></div>
+                    </div>
+                    <div className="flex text-[10px] text-slate-400 font-bold tracking-widest uppercase justify-between">
+                      <span>Track Progress</span>
+                      <span>100% Completion Required</span>
+                    </div>
+                    
+                    <div className="flex gap-2 pt-2">
+                      <a 
+                        href={course.agendaPath || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-center transition-all flex items-center justify-center gap-1.5 border
+                          ${course.agendaPath 
+                            ? "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:shadow-sm" 
+                            : "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed"
+                          }`}
+                        onClick={(e) => !course.agendaPath && e.preventDefault()}
+                      >
+                        <FileText size={14} className={course.agendaPath ? "text-indigo-500" : ""} />
+                        <span>Agenda</span>
+                      </a>
+                      <button onClick={() => startRegistration(course.name, activeTab)} className="flex-1 bg-indigo-600 text-white hover:bg-blue-700 font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all text-sm">Enroll <ArrowRight size={14}/></button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -525,20 +561,62 @@ export default function YTSProject() {
         )}
 
         {activeTab === "Site Training" && (
-          <div className="animate-in fade-in space-y-8">
+          <div className="animate-in fade-in space-y-8 max-w-6xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-light text-[#004098]">Site Training Programs</h2>
-            <div className="bg-blue-50 p-6 rounded-2xl mb-8 border border-blue-100">
-              <p className="text-blue-800 text-sm font-semibold">We can conduct training at your facility. Select a course below to register your interest.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {baseCourses.map((course) => (
-                <div key={`site-${course.id}`} className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm flex flex-col group hover:shadow-lg transition-all">
-                  <div className="bg-[#004098] p-6 text-white flex-1">
-                    <div className="text-[10px] font-black uppercase tracking-widest mb-2 opacity-60">CODE: {course.code}</div>
-                    <h3 className="text-lg font-bold leading-tight">{course.name}</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="md:col-span-2 bg-[#004098] p-8 rounded-3xl text-white shadow-lg flex flex-col justify-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/30 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                <h3 className="text-2xl font-bold mb-4">Training at Your Facility</h3>
+                <p className="text-blue-100 leading-relaxed max-w-lg mb-6">Minimize travel time and expenses. Our expert Yokogawa trainers will travel to your plant or corporate office to deliver customized, hands-on sessions utilizing your own systems or our portable training rigs.</p>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-medium">
+                  <li className="flex items-center gap-2 text-blue-50"><CheckCircle2 size={16} className="text-orange-400"/> Customized Curriculum</li>
+                  <li className="flex items-center gap-2 text-blue-50"><CheckCircle2 size={16} className="text-orange-400"/> Portable Simulators</li>
+                  <li className="flex items-center gap-2 text-blue-50"><CheckCircle2 size={16} className="text-orange-400"/> Flexible Scheduling</li>
+                  <li className="flex items-center gap-2 text-blue-50"><CheckCircle2 size={16} className="text-orange-400"/> Maximize Team Participation</li>
+                </ul>
+              </div>
+              <div className="bg-slate-100 rounded-3xl border border-slate-200 overflow-hidden relative min-h-[250px]">
+                <img src="/placeholder.svg?height=400&width=600" alt="Site Training" className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-multiply" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent flex items-end p-6">
+                  <div className="text-white">
+                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center mb-3">
+                      <Building2 size={20} />
+                    </div>
+                    <p className="font-bold">Corporate & Plant Sites</p>
                   </div>
-                  <div className="p-5 bg-slate-50/50 flex flex-col gap-3">
-                    <button onClick={() => startRegistration(course.name, activeTab)} className="w-full bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white font-black py-3 rounded-2xl flex items-center justify-center gap-2 transition-all text-sm">Register Now <ArrowRight size={16} /></button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+              {baseCourses.map((course) => (
+                <div key={`site-${course.id}`} className="bg-white border-2 border-slate-100 rounded-3xl p-5 flex flex-col sm:flex-row items-center gap-5 hover:border-orange-200 hover:shadow-lg transition-all group">
+                  <div className="w-20 h-20 bg-orange-50 rounded-2xl flex flex-col items-center justify-center text-orange-600 shrink-0">
+                    <span className="text-xs font-bold opacity-60">CODE</span>
+                    <span className="font-black text-lg">{course.code}</span>
+                  </div>
+                  <div className="flex-1 text-center sm:text-left w-full">
+                    <h3 className="text-lg font-bold text-slate-800 mb-1 leading-tight">{course.name}</h3>
+                    <p className="text-sm text-slate-500 font-medium mb-3 flex items-center justify-center sm:justify-start gap-1.5"><Clock size={14}/> {course.days} Days Base Duration</p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-2 w-full">
+                      <a 
+                        href={course.agendaPath || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold text-center transition-all flex items-center justify-center gap-1.5 border
+                          ${course.agendaPath 
+                            ? "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300" 
+                            : "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed"
+                          }`}
+                        onClick={(e) => !course.agendaPath && e.preventDefault()}
+                      >
+                        <FileText size={14} className={course.agendaPath ? "text-slate-400" : ""} />
+                        <span>Base Agenda</span>
+                      </a>
+                      <button onClick={() => startRegistration(course.name, activeTab)} className="flex-1 bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-500 hover:text-white font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs">Request Site <ArrowRight size={14}/></button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -568,57 +646,14 @@ export default function YTSProject() {
         )}
 
         {activeTab === "Training Calendar" && (
-          <div className="animate-in fade-in space-y-12 max-w-5xl mx-auto">
+          <div className="animate-in fade-in space-y-12 max-w-6xl mx-auto">
             <div className="text-center space-y-3">
               <h1 className="text-3xl md:text-4xl font-bold text-[#004098]">Yokogawa Training Calendar</h1>
               <p className="text-slate-500 max-w-xl mx-auto text-sm">
-                Select your preferred learning delivery format to view or download the upcoming technical schedule.
+                Explore the upcoming technical schedule for all our training programs globally.
               </p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm flex flex-col justify-between hover:shadow-lg transition-all duration-300">
-                <div>
-                  <div className="h-12 w-12 rounded-2xl bg-blue-50 text-[#004098] flex items-center justify-center mb-6">
-                    <Laptop size={24} />
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-800 mb-3">VILT & Online Training</h2>
-                  <p className="text-sm text-slate-500 leading-relaxed mb-8">
-                    Access live, interactive, instructor-led virtual training sessions right from your location. Explore schedules for remote DCS configurations, automation simulators, and online learning modules.
-                  </p>
-                </div>
-                <a 
-                  href={VILT_CALENDAR_PATH} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-full bg-[#004098] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 text-sm hover:bg-blue-700 transition-colors"
-                >
-                  <span>View VILT Calendar</span>
-                  <ExternalLink size={16} />
-                </a>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm flex flex-col justify-between hover:shadow-lg transition-all duration-300">
-                <div>
-                  <div className="h-12 w-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mb-6">
-                    <Monitor size={24} />
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-800 mb-3">Classroom Training</h2>
-                  <p className="text-sm text-slate-500 leading-relaxed mb-8">
-                    Join us at our physical training facilities for immersive, hands-on labs with functional hardware workstations, process instrument loops, and live control panel infrastructure.
-                  </p>
-                </div>
-                <a 
-                  href={CLASSROOM_CALENDAR_PATH} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-full bg-white border-2 border-orange-500 text-orange-600 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 text-sm hover:bg-orange-500 hover:text-white transition-all"
-                >
-                  <span>View Classroom Calendar</span>
-                  <ExternalLink size={16} />
-                </a>
-              </div>
-            </div>
+            <DynamicCalendar />
           </div>
         )}
 

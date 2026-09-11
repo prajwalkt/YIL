@@ -49,10 +49,10 @@ export async function GET(request: NextRequest) {
     try {
       const feedbackResult = await req.query(`
         SELECT 
-          AVG(CAST(OverallRating AS FLOAT)) as AvgTrainerScore,
+          AVG(CAST(TrainerScore AS FLOAT)) as AvgTrainerScore,
           COUNT(*) as TotalFeedback
         FROM Feedback 
-        WHERE TrainerID = @TrainerUserID AND Status = 'COMPLETED'
+        WHERE TrainerID = @TrainerUserID
       `);
       if (feedbackResult.recordset.length > 0) {
         feedbackSummary = feedbackResult.recordset[0];
@@ -81,6 +81,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (e: any) {
     console.error("Trainer Dashboard Error:", e);
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

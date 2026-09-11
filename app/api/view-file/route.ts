@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Construct the absolute path
-    const absolutePath = path.join(process.cwd(), requestedPath);
+    const absolutePath = path.join(/*turbopackIgnore: true*/ process.cwd(), requestedPath);
 
     // Security check: ensure the resolved path stays within the private directory
-    if (!absolutePath.startsWith(path.join(process.cwd(), 'private'))) {
+    if (!absolutePath.startsWith(path.join(/*turbopackIgnore: true*/ process.cwd(), 'private'))) {
       return new NextResponse(
         JSON.stringify({ success: false, message: 'Directory traversal detected' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }

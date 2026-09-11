@@ -14,12 +14,24 @@ export async function GET(request: NextRequest) {
     // Fetch registrations that are APPROVED but not yet enrolled
     // Technically, Status = 'APPROVED' means it's approved and waiting for batch.
     // If we kept 'WAITING_BATCH', we might include that too.
-    const result = await pool.request().query(`
-      SELECT Id, Name, Email, Organization, Course, CreatedAt, AdminApprovedAt, Status
+    let query = `
+      SELECT Id, Name, Email, Organization, Course, CreatedAt, AdminApprovedAt, Status, PreferredStartDate, PreferredEndDate, TrainingMode
       FROM Registrations 
       WHERE Status IN ('APPROVED', 'WAITING_BATCH')
-      ORDER BY AdminApprovedAt ASC, CreatedAt ASC
-    `);
+    `;
+
+    if (user!.role === 'TRAINER') {
+      query += ` AND TrainerId = @UserId`;
+    }
+
+    query += ` ORDER BY AdminApprovedAt ASC, CreatedAt ASC`;
+
+    const req = pool.request();
+    if (user!.role === 'TRAINER') {
+      req.input('UserId', Number(user!.userId));
+    }
+
+    const result = await req.query(query);
 
     return NextResponse.json({ 
       success: true, 
@@ -27,6 +39,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (e: any) {
     console.error("Error in unassigned API:", e);
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

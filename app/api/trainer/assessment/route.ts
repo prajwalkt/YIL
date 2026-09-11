@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
   if (!requireRole(user, 'TRAINER', 'ADMIN')) return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 });
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { enrollmentId, marks, remarks, status } = body;
     // marks is an object like { "Q1": 10, "Q2": 8 }
 
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
     
     // Get enrollment details
     const enrRes = await pool.request().input('EnrollmentID', Number(enrollmentId)).query(`
-      SELECT e.*, u.FirstName, u.LastName, c.Title as CourseTitle
+      SELECT e.*, u.FirstName, u.LastName, u.Email, c.Title as CourseTitle
       FROM Enrollments e
       JOIN LMS_Users u ON e.StudentID = u.UserID
       JOIN LMS_Courses c ON e.CourseID = c.CourseID
@@ -105,8 +106,32 @@ export async function POST(request: NextRequest) {
       UPDATE Assessments SET PDFPath = @PDFPath WHERE AssessmentID = @AssessmentID
     `);
 
-    return NextResponse.json({ success: true, message: 'Assessment saved', pdfUrl });
+    // Update Enrollment and Registration if COMPLETED
+    if (status === 'COMPLETED' || status === 'PASSED') {
+      await pool.request()
+        .input('EnrollmentID', enr.EnrollmentID)
+        .input('RegistrationID', enr.RegistrationID)
+        .query(`
+          UPDATE Enrollments SET Status = 'COMPLETED', ProgressPercent = 100 WHERE EnrollmentID = @EnrollmentID;
+          UPDATE Registrations SET Status = 'COMPLETED' WHERE Id = @RegistrationID;
+        `);
+    }
+
+    // Email to Student
+    const { sendEmail } = await import('../../../library/email');
+    await sendEmail({
+      to: enr.Email,
+      subject: `Your Assessment Report for ${enr.CourseTitle}`,
+      html: `<p>Dear ${enr.FirstName},</p>
+             <p>Your assessment for <strong>${enr.CourseTitle}</strong> has been graded by your trainer.</p>
+             <p>Overall Score: ${totalScore}</p>
+             <p>Status: ${status || 'COMPLETED'}</p>
+             <p>Please find your official Assessment Report attached.</p>`,
+      attachments: [{ filename: fileName, path: filePath }]
+    });
+
+    return NextResponse.json({ success: true, message: 'Assessment saved and emailed to student', pdfUrl });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

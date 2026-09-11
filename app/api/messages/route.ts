@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../library/validation';
 import { getUserFromRequest, requireRole } from '../../library/auth';
 import { getConnection } from '../../library/db';
 
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     const result = await pool.request().input('UserID', user.userId).query(query);
     return NextResponse.json({ success: true, messages: result.recordset });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { receiverId, subject, body } = await request.json();
+    const { receiverId, subject, body } = await parseAndSanitizeBody(request);
     if (!receiverId || !subject || !body) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 });
     }
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Message sent successfully' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -70,7 +71,7 @@ export async function PATCH(request: NextRequest) {
   if (!user) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { messageId } = await request.json();
+    const { messageId } = await parseAndSanitizeBody(request);
     if (!messageId) return NextResponse.json({ success: false, message: 'Missing messageId' }, { status: 400 });
 
     const pool = await getConnection();
@@ -85,6 +86,6 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Message marked as read' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

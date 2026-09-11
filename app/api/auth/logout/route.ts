@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest, auditLog } from '../../../library/auth';
+import { getConnection } from '../../../library/db';
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
     // Invalidate session in DB
     if (user.sessionId) {
       try {
-        const { getConnection } = require('../../../library/db');
+
         const pool = await getConnection();
         await pool.request()
           .input('SessionID', user.sessionId)
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
   // Clear auth cookie
   response.cookies.set('auth_token', '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: request.headers.get('x-forwarded-proto') === 'https' || request.nextUrl.protocol === 'https:',
     sameSite: 'strict',
     maxAge: 0,
     path: '/',

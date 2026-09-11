@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       attendance: attendanceResult.recordset
     });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const { calendarId, sessionDate, records } = await request.json();
+    const { calendarId, sessionDate, records } = await parseAndSanitizeBody(request);
     if (!calendarId || !sessionDate || !records || !Array.isArray(records)) {
       return NextResponse.json({ success: false, message: 'Invalid payload' }, { status: 400 });
     }
@@ -87,11 +88,13 @@ export async function POST(request: NextRequest) {
             UPDATE Enrollments 
             SET AttendancePercentage = (
               SELECT ISNULL(
-                (CAST(SUM(CASE WHEN Status = 'PRESENT' THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*)) * 100, 
+                (CAST(SUM(CASE WHEN a.Status = 'PRESENT' THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(c.Duration, 0)) * 100, 
                 0
               )
-              FROM Attendance 
-              WHERE EnrollmentID = @EnrollmentID
+              FROM Attendance a
+              JOIN Enrollments e2 ON a.EnrollmentID = e2.EnrollmentID
+              JOIN LMS_Courses c ON e2.CourseID = c.CourseID
+              WHERE a.EnrollmentID = @EnrollmentID
             )
             WHERE EnrollmentID = @EnrollmentID
           `);
@@ -105,6 +108,6 @@ export async function POST(request: NextRequest) {
       throw e;
     }
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

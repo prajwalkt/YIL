@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -7,7 +8,7 @@ export async function POST(request: NextRequest) {
   if (!requireRole(user, 'ADMIN', 'TM')) return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 });
 
   try {
-    const { enrollmentId } = await request.json();
+    const { enrollmentId } = await parseAndSanitizeBody(request);
     if (!enrollmentId) return NextResponse.json({ success: false, message: 'Missing enrollmentId' }, { status: 400 });
 
     const pool = await getConnection();
@@ -58,6 +59,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Certificate generated successfully', certificateNo: certNo });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

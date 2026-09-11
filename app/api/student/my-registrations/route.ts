@@ -30,6 +30,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (e: any) {
     console.error("Error in my-registrations API:", e);
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

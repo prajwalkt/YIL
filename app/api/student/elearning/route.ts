@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -19,9 +20,11 @@ export async function GET(request: NextRequest) {
         SELECT 
           e.EnrollmentID, e.CourseID, e.Status as EnrollmentStatus, e.ProgressPercent,
           c.Title as CourseTitle, c.Description as CourseDescription, c.ThumbnailPath,
-          c.Duration, c.Code as CourseCode
+          c.Duration, c.Code as CourseCode,
+          ISNULL(r.TrainingMode, c.Mode) as Mode
         FROM Enrollments e
         JOIN LMS_Courses c ON e.CourseID = c.CourseID
+        LEFT JOIN Registrations r ON e.RegistrationID = r.Id
         WHERE e.StudentID = @UserID AND e.Status != 'DROPPED'
         ORDER BY e.EnrolledAt DESC
       `);
@@ -38,6 +41,7 @@ export async function GET(request: NextRequest) {
       try {
         const contentResult = await pool.request()
           .input('CourseID', enrollment.CourseID)
+          .input('UserID', user!.userId)
           .query(`
             SELECT ec.ContentID, ec.Title, ec.ContentType, ec.FilePath, ec.DurationSec,
                    ec.SortOrder, ec.IsRequired, ec.Description, ec.ThumbnailPath,
@@ -45,7 +49,7 @@ export async function GET(request: NextRequest) {
                    ISNULL(ep.IsCompleted, 0) as IsCompleted,
                    ISNULL(ep.LastPosition, 0) as LastPosition
             FROM ELearningContent ec
-            LEFT JOIN ELearningProgress ep ON ep.ContentID = ec.ContentID AND ep.UserID = ${user!.userId}
+            LEFT JOIN ELearningProgress ep ON ep.ContentID = ec.ContentID AND ep.UserID = @UserID
             WHERE ec.CourseID = @CourseID
             ORDER BY ec.SortOrder, ec.ContentID
           `);
@@ -53,6 +57,20 @@ export async function GET(request: NextRequest) {
       } catch {
         // Table may not exist yet — return empty content
         content = [];
+      }
+
+      // Inject Synthesia modules for specific courses and E-Learning mode
+      const isTargetCourse = enrollment.CourseTitle === 'VPOP – CENTUM VP DCS Operation' || 
+                             enrollment.CourseTitle === 'VPOP - CENTUM VP DCS Operation' ||
+                             enrollment.CourseTitle === 'CENTUM VP TEST';
+      const isELearning = enrollment.Mode === 'E-Learning (Self-Paced)' || enrollment.Mode === 'E-Learning';
+      
+      if (isTargetCourse && isELearning) {
+        content.push(
+          { ContentID: 9001, Title: 'Module-1', ContentType: 'SYNTHESIA', FilePath: 'https://share.synthesia.io/9ea2428d-df38-4674-a289-9f6e63897e18', DurationSec: 0, SortOrder: 9001, IsRequired: 0, Description: 'Synthesia Video', IsCompleted: 0, LastPosition: 0 },
+          { ContentID: 9002, Title: 'Module-2', ContentType: 'SYNTHESIA', FilePath: 'https://share.synthesia.io/d833a527-9586-4985-85f6-11029a7c434d', DurationSec: 0, SortOrder: 9002, IsRequired: 0, Description: 'Synthesia Video', IsCompleted: 0, LastPosition: 0 },
+          { ContentID: 9003, Title: 'Module-3', ContentType: 'SYNTHESIA', FilePath: 'https://share.synthesia.io/d52fd2fb-b3a0-4ac7-92a8-446fddcf2e8a', DurationSec: 0, SortOrder: 9003, IsRequired: 0, Description: 'Synthesia Video', IsCompleted: 0, LastPosition: 0 }
+        );
       }
 
       // Calculate overall progress from content completion
@@ -71,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, courses });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -83,7 +101,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { contentId, watchedSeconds, totalSeconds, isCompleted, lastPosition } = body;
 
     if (!contentId) {
@@ -158,6 +176,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Progress saved' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -12,11 +12,14 @@ export async function GET(request: NextRequest) {
     const req = pool.request();
     req.input('StudentID', user!.userId);
 
-    // Get active enrollments with access dates
+    // Get active enrollments
     const enrollmentsResult = await req.query(`
       SELECT e.*, c.Title as CourseTitle, ISNULL(r.TrainingMode, c.Mode) as Mode,
-             tc.StartDate, tc.EndDate, tc.TrainerName, tc.Location,
-             e.AccessStartDate, e.AccessEndDate, e.DurationDays
+             tc.StartDate, tc.EndDate, tc.TrainerName, tc.Location, c.Duration as DurationDays,
+             (SELECT COUNT(*) FROM Attendance a WHERE a.EnrollmentID = e.EnrollmentID AND a.Status = 'Present') as DaysAttended,
+             (SELECT TOP 1 WatchedSeconds FROM ELearningProgress el WHERE el.EnrollmentID = e.EnrollmentID) as WatchedSeconds,
+             (SELECT TOP 1 TotalSeconds FROM ELearningProgress el WHERE el.EnrollmentID = e.EnrollmentID) as TotalSeconds,
+             r.OriginalStartDate, r.OriginalEndDate, r.FinalStartDate, r.FinalEndDate, r.DateApprovalStatus
       FROM Enrollments e
       JOIN LMS_Courses c ON e.CourseID = c.CourseID
       LEFT JOIN TrainingCalendar tc ON e.CalendarID = tc.CalendarID
@@ -25,24 +28,47 @@ export async function GET(request: NextRequest) {
       ORDER BY e.EnrolledAt DESC
     `);
 
-    // Enrich enrollments with computed progress for non-E-Learning modes
+    // Enrich enrollments with computed progress from actual attendance / elearning
     const enrollments = enrollmentsResult.recordset.map((enr: any) => {
       const isELearning = (enr.Mode || '').toLowerCase().includes('elearning') ||
                           (enr.Mode || '').toLowerCase().includes('e-learning') ||
                           (enr.Mode || '') === 'ELEARNING';
 
-      const accessExpired = enr.AccessEndDate
-        ? new Date() > new Date(enr.AccessEndDate)
-        : false;
+      const now = new Date();
+      let accessExpired = false;
+      let accessStarted = true;
 
-      const computedProgress = (!isELearning && enr.AccessStartDate && enr.AccessEndDate)
-        ? computeTimeBasedProgress(enr.AccessStartDate, enr.AccessEndDate)
-        : (enr.ProgressPercent || 0);
+      if (enr.EndDate) {
+        const endD = new Date(enr.EndDate);
+        endD.setHours(23, 59, 59, 999);
+        accessExpired = now > endD;
+      }
+      if (enr.StartDate) {
+        const startD = new Date(enr.StartDate);
+        startD.setHours(0, 0, 0, 0);
+        accessStarted = now >= startD;
+      }
+
+      let computedProgress = 0;
+      if (isELearning) {
+        if (enr.TotalSeconds > 0 && enr.WatchedSeconds) {
+           computedProgress = Math.round((enr.WatchedSeconds / enr.TotalSeconds) * 100);
+        } else {
+           computedProgress = enr.ProgressPercent || 0;
+        }
+      } else {
+         if (enr.DurationDays && enr.DurationDays > 0) {
+            computedProgress = Math.min(100, Math.round(((enr.DaysAttended || 0) / enr.DurationDays) * 100));
+         } else {
+            computedProgress = 0;
+         }
+      }
 
       return {
         ...enr,
         ComputedProgress: computedProgress,
         AccessExpired: accessExpired,
+        AccessStarted: accessStarted,
         IsELearning: isELearning,
       };
     });
@@ -78,6 +104,6 @@ export async function GET(request: NextRequest) {
       catalog: catalogResult.recordset
     });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
     const result = await pool.request().query('SELECT SettingKey, SettingValue, Description FROM SystemSettings');
     return NextResponse.json({ success: true, settings: result.recordset });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -21,7 +22,7 @@ export async function PUT(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const { settings } = await request.json();
+    const { settings } = await parseAndSanitizeBody(request);
     if (!settings || typeof settings !== 'object') {
       return NextResponse.json({ success: false, message: 'Invalid payload' }, { status: 400 });
     }
@@ -49,6 +50,6 @@ export async function PUT(request: NextRequest) {
       throw e;
     }
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

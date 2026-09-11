@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   const user = getUserFromRequest(request);
@@ -10,7 +12,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const { registrationId, calendarId } = await request.json();
+    const { registrationId, calendarId } = await parseAndSanitizeBody(request);
     if (!registrationId || !calendarId) {
       return NextResponse.json({ success: false, message: 'Registration ID and Calendar ID are required' }, { status: 400 });
     }
@@ -39,8 +41,8 @@ export async function POST(request: NextRequest) {
     const userCheck = await pool.request().input('Email', reg.Email).query(`SELECT UserID FROM LMS_Users WHERE Email = @Email`);
     let studentId = 0;
     if (userCheck.recordset.length === 0) {
-      const salt = await require('bcryptjs').genSalt(10);
-      const hash = await require('bcryptjs').hash('Test@1234!', salt);
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash('Test@1234!', salt);
       const nameParts = reg.Name.split(' ');
       const fName = nameParts[0];
       const lName = nameParts.slice(1).join(' ');
@@ -111,6 +113,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Student successfully assigned to batch' });
   } catch (e: any) {
     console.error("Error in assign-batch API:", e);
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

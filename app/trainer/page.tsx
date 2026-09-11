@@ -119,13 +119,13 @@ function StudentsTab({ token }: { token: string }) {
   }, [token, search, filterBatch, filterStatus]);
 
   const loadBatches = useCallback(async () => {
-    const res = await fetch('/api/trainer/dashboard', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch('/api/trainer/dashboard', { credentials: 'include', headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.success) setBatches(data.upcomingSchedule || []);
   }, [token]);
 
   const loadUsers = useCallback(async () => {
-    const res = await fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch('/api/admin/users', { credentials: 'include', headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.success) setAllUsers(data.users?.filter((u: any) => u.Role === 'STUDENT') || []);
   }, [token]);
@@ -134,7 +134,7 @@ function StudentsTab({ token }: { token: string }) {
 
   const handleEnroll = async () => {
     setSaving(true); setMsg('');
-    const res = await fetch('/api/trainer/students', {
+    const res = await fetch('/api/trainer/students', { credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ studentId: Number(enrollForm.studentId), calendarId: Number(enrollForm.calendarId) })
@@ -151,7 +151,7 @@ function StudentsTab({ token }: { token: string }) {
     const body: any = { enrollmentId: showEditModal.EnrollmentID };
     if (editForm.progress !== '') body.progress = Number(editForm.progress);
     if (editForm.status !== '') body.status = editForm.status;
-    const res = await fetch('/api/trainer/students', {
+    const res = await fetch('/api/trainer/students', { credentials: 'include',
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body)
@@ -164,7 +164,7 @@ function StudentsTab({ token }: { token: string }) {
 
   const handleRemove = async (enrollmentId: number) => {
     if (!confirm('Remove this student from the batch?')) return;
-    await fetch(`/api/trainer/students?enrollmentId=${enrollmentId}`, {
+    await fetch(`/api/trainer/students?enrollmentId=${enrollmentId}`, { credentials: 'include',
       method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
     });
     load();
@@ -179,7 +179,7 @@ function StudentsTab({ token }: { token: string }) {
   const loadAttendanceForDate = async (date: string) => {
     if (!filterBatch) return;
     setLoading(true);
-    const res = await fetch(`/api/trainer/attendance?calendarId=${filterBatch}`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`/api/trainer/attendance?calendarId=${filterBatch}`, { credentials: 'include', headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.success) {
       // Initialize records
@@ -195,7 +195,7 @@ function StudentsTab({ token }: { token: string }) {
 
   const handleSaveAttendance = async () => {
     setSaving(true); setMsg('');
-    const res = await fetch('/api/trainer/attendance', {
+    const res = await fetch('/api/trainer/attendance', { credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ calendarId: Number(filterBatch), sessionDate: attendanceDate, records: attendanceRecords })
@@ -418,31 +418,44 @@ function UnassignedTab({ token }: { token: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch('/api/trainer/unassigned', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch('/api/trainer/unassigned', { credentials: 'include', headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.success) setUnassigned(data.unassigned || []);
     setLoading(false);
   }, [token]);
 
   const loadBatches = useCallback(async () => {
-    const res = await fetch('/api/trainer/dashboard', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch('/api/trainer/dashboard', { credentials: 'include', headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.success) setBatches(data.upcomingSchedule || []);
   }, [token]);
 
   useEffect(() => { load(); loadBatches(); }, [load, loadBatches]);
 
-  const handleAssign = async () => {
-    if (!showAssignModal || !calendarId) return;
+  const handleAssign = async (confirmRequestedDates: boolean = false) => {
+    if (!showAssignModal) return;
+    if (!confirmRequestedDates && !calendarId) return;
+    
     setSaving(true); setMsg('');
-    const res = await fetch('/api/trainer/assign-batch', {
-      method: 'POST',
+    const body: any = { 
+      registrationId: showAssignModal.Id, 
+      action: 'APPROVE',
+      confirmRequestedDates 
+    };
+    if (calendarId && !confirmRequestedDates) {
+      body.selectedSlotId = Number(calendarId);
+    }
+
+    const res = await fetch('/api/admin/approvals', { credentials: 'include',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ registrationId: showAssignModal.Id, calendarId: Number(calendarId) })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     setMsg(data.message);
-    if (data.success) { setShowAssignModal(null); load(); }
+    if (data.success) { 
+      setTimeout(() => { setShowAssignModal(null); load(); }, 1000);
+    }
     setSaving(false);
   };
 
@@ -452,7 +465,7 @@ function UnassignedTab({ token }: { token: string }) {
         {loading ? <div className="p-12 text-center"><Loader size={24} className="animate-spin mx-auto text-gray-300"/></div> : (
           <table className="w-full text-left min-w-[800px]">
             <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>{['Student', 'Course', 'Organization', 'Status', 'Approved On', 'Actions'].map(h => (
+              <tr>{['Student', 'Course & Mode', 'Requested Dates', 'Organization', 'Status', 'Actions'].map(h => (
                 <th key={h} className="px-5 py-3.5 text-xs font-black text-gray-400 uppercase tracking-widest">{h}</th>
               ))}</tr>
             </thead>
@@ -463,34 +476,65 @@ function UnassignedTab({ token }: { token: string }) {
                     <p className="text-sm font-semibold text-gray-800">{r.Name}</p>
                     <p className="text-xs text-gray-400">{r.Email}</p>
                   </td>
-                  <td className="px-5 py-3.5 text-sm text-gray-700">{r.Course}</td>
+                  <td className="px-5 py-3.5">
+                    <p className="text-sm text-gray-700">{r.Course}</p>
+                    <p className="text-xs text-gray-500 font-medium mt-0.5">{r.TrainingMode}</p>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {r.PreferredStartDate && r.PreferredEndDate ? (
+                      <p className="text-xs font-semibold text-blue-600 bg-blue-50 py-1 px-2 rounded-lg inline-block">
+                        {new Date(r.PreferredStartDate).toLocaleDateString()} to {new Date(r.PreferredEndDate).toLocaleDateString()}
+                      </p>
+                    ) : <span className="text-xs text-gray-400">Not requested</span>}
+                  </td>
                   <td className="px-5 py-3.5 text-sm text-gray-600">{r.Organization || '–'}</td>
                   <td className="px-5 py-3.5">
                     <Badge text={r.Status} color="orange"/>
                   </td>
-                  <td className="px-5 py-3.5 text-xs text-gray-500">{r.AdminApprovedAt ? new Date(r.AdminApprovedAt).toLocaleDateString() : '–'}</td>
                   <td className="px-5 py-3.5">
                     <button onClick={() => { setShowAssignModal(r); setCalendarId(''); setMsg(''); }} className="bg-[#004020] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-800 transition-colors">
-                      Assign Batch
+                      Review / Assign
                     </button>
                   </td>
                 </tr>
               ))}
-              {unassigned.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-gray-400 text-sm">No unassigned students found.</td></tr>}
+              {unassigned.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-gray-400 text-sm">No pending students found.</td></tr>}
             </tbody>
           </table>
         )}
       </div>
 
       {showAssignModal && (
-        <Modal title={`Assign Batch: ${showAssignModal.Name}`} onClose={() => setShowAssignModal(null)}>
+        <Modal title={`Review Request: ${showAssignModal.Name}`} onClose={() => setShowAssignModal(null)}>
           {msg && <div className={`mb-4 text-sm p-3 rounded-xl ${msg.toLowerCase().includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{msg}</div>}
-          <div className="space-y-4">
+          <div className="space-y-6">
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <h4 className="text-xs font-bold text-gray-400 uppercase mb-2">Requested Details</h4>
+              <p className="text-sm font-semibold text-gray-800 mb-1">{showAssignModal.Course}</p>
+              <p className="text-xs text-gray-600 mb-3">{showAssignModal.TrainingMode}</p>
+              {showAssignModal.PreferredStartDate && showAssignModal.PreferredEndDate ? (
+                <div className="flex items-center gap-2 text-sm font-bold text-blue-700 bg-blue-100/50 p-2 rounded-lg">
+                  <Calendar size={16}/> 
+                  {new Date(showAssignModal.PreferredStartDate).toLocaleDateString()} – {new Date(showAssignModal.PreferredEndDate).toLocaleDateString()}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No specific dates requested.</p>
+              )}
+            </div>
+
+            {showAssignModal.PreferredStartDate && showAssignModal.PreferredEndDate && (
+              <div className="border-t border-b border-gray-100 py-4">
+                <p className="text-sm text-gray-600 mb-3">You can create an official batch based exactly on the requested dates.</p>
+                <button onClick={() => handleAssign(true)} disabled={saving} className="w-full bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <CheckCircle size={16}/> Confirm Requested Dates
+                </button>
+              </div>
+            )}
+
             <div>
-              <p className="text-sm text-gray-600 mb-4">Select an available batch for <strong>{showAssignModal.Course}</strong>:</p>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Select Batch *</label>
+              <p className="text-sm text-gray-600 mb-3 font-semibold">OR assign to an existing scheduled batch:</p>
               <select value={calendarId} onChange={e => setCalendarId(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-green-100">
-                <option value="">-- Choose a batch --</option>
+                <option value="">-- Choose an existing batch --</option>
                 {batches.filter(b => b.CourseTitle === showAssignModal.Course || !showAssignModal.Course).map((b: any) => {
                   const avail = b.MaxParticipants - (b.CurrentEnrolled || 0);
                   return (
@@ -500,13 +544,11 @@ function UnassignedTab({ token }: { token: string }) {
                   );
                 })}
               </select>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button onClick={handleAssign} disabled={saving || !calendarId} className="flex-1 bg-[#004020] text-white py-2.5 rounded-xl text-sm font-bold hover:bg-green-800 disabled:opacity-50">
-                {saving ? 'Assigning…' : 'Assign Student'}
+              <button onClick={() => handleAssign(false)} disabled={saving || !calendarId} className="w-full mt-3 bg-[#004020] text-white py-2.5 rounded-xl text-sm font-bold hover:bg-green-800 disabled:opacity-50 flex items-center justify-center gap-2">
+                <CheckCircle size={16}/> Assign to Selected Batch
               </button>
-              <button onClick={() => setShowAssignModal(null)} className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-50">Cancel</button>
             </div>
+            
           </div>
         </Modal>
       )}
@@ -543,10 +585,9 @@ function ResourcesTab() {
   const [newMat, setNewMat] = useState({ title: '', courseId: '', fileType: 'PDF' });
 
   const fetchData = async () => {
-    const token = localStorage.getItem('auth_token') || '';
     const [matRes, coursesRes] = await Promise.all([
-      fetch('/api/materials', { headers: { Authorization: `Bearer ${token}` } }),
-      fetch('/api/admin/courses', { headers: { Authorization: `Bearer ${token}` } })
+      fetch('/api/materials', { credentials: 'include' }),
+      fetch('/api/admin/courses', { credentials: 'include' })
     ]);
     const matData = await matRes.json();
     const coursesData = await coursesRes.json();
@@ -560,10 +601,9 @@ function ResourcesTab() {
   const handleUpload = async () => {
     if (!newMat.title || !newMat.courseId) return alert('Fill all fields');
     setUploading(true);
-    const token = localStorage.getItem('auth_token') || '';
-    const res = await fetch('/api/materials', {
+    const res = await fetch('/api/materials', { credentials: 'include',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...newMat, filePath: '/uploads/mock-' + Date.now() + '.pdf', isVisible: true })
     });
     if (res.ok) {
@@ -575,8 +615,7 @@ function ResourcesTab() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete material?')) return;
-    const token = localStorage.getItem('auth_token') || '';
-    const res = await fetch(`/api/materials?id=${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`/api/materials?id=${id}`, { credentials: 'include', method: 'DELETE' });
     if (res.ok) fetchData();
   };
 
@@ -650,25 +689,25 @@ export default function TrainerPortal() {
   const [token, setToken] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem('user');
-    if (!stored) { router.push('/login?redirect=/trainer'); return; }
-    const u = JSON.parse(stored);
-    if (!['TRAINER', 'ADMIN'].includes(u.role)) { router.push('/login'); return; }
-    setUser(u);
-    const t = localStorage.getItem('auth_token') || '';
-    setToken(t);
-    (async () => {
-      const res = await fetch('/api/trainer/dashboard', { headers: { Authorization: `Bearer ${t}` } });
-      const d = await res.json();
-      if (d.success) setData(d);
-      setLoading(false);
-    })();
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.json())
+      .then(async (data) => {
+        if (!data.success || !data.user || !['TRAINER', 'ADMIN'].includes(data.user.role)) {
+          router.push('/login?redirect=/trainer');
+          return;
+        }
+        setUser(data.user);
+        
+        const res = await fetch('/api/trainer/dashboard', { credentials: 'include' });
+        const d = await res.json();
+        if (d.success) setData(d);
+        setLoading(false);
+      })
+      .catch(() => router.push('/login'));
   }, [router]);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
+    await fetch('/api/auth/logout', { credentials: 'include', method: 'POST' });
     router.push('/login');
   };
 

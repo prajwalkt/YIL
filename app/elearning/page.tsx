@@ -9,8 +9,10 @@ import {
   ArrowLeft,
   User,
   Eye,
-  EyeOff
+  EyeOff,
+  CheckCircle
 } from "lucide-react";
+import PasswordPolicy from "../components/PasswordPolicy";
 
 export default function ELearningPortal() {
 
@@ -19,6 +21,7 @@ export default function ELearningPortal() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [policyAccepted, setPolicyAccepted] = useState(false);
 
   const [loggedIn, setLoggedIn] = useState(false);
 
@@ -173,11 +176,32 @@ showPassword ?
 
 </div>
 
+<div className="mt-6 flex flex-col gap-2">
+  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+    <PasswordPolicy />
+  </div>
+  <label className="flex items-start gap-2 cursor-pointer mt-2 group">
+    <div className="relative flex items-center justify-center mt-0.5">
+      <input
+        type="checkbox"
+        checked={policyAccepted}
+        onChange={(e) => setPolicyAccepted(e.target.checked)}
+        className="appearance-none w-4 h-4 rounded border border-slate-300 bg-white checked:bg-blue-600 checked:border-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600/30"
+        required
+      />
+      <CheckCircle size={12} className={`absolute text-white pointer-events-none transition-opacity ${policyAccepted ? 'opacity-100' : 'opacity-0'}`} />
+    </div>
+    <span className="text-slate-600 text-xs font-medium group-hover:text-slate-900 transition-colors">
+      I have read and accept the password policy requirements for LMS access.
+    </span>
+  </label>
+</div>
+
 <button
 
 onClick={login}
-
-className="w-full mt-10 bg-[#004098] text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition"
+disabled={!policyAccepted}
+className="w-full mt-6 bg-[#004098] text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
 
 >
 

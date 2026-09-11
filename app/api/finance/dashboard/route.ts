@@ -91,6 +91,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (e: any) {
     console.error('Finance dashboard error:', e);
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

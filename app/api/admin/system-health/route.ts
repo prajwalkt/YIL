@@ -54,6 +54,6 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message, health: { database: { status: 'Down' } } }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error', health: { database: { status: 'Down' } } }, { status: 500 });
   }
 }

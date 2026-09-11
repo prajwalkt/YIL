@@ -33,7 +33,7 @@ export default function AssessmentForm() {
     setSaving(true);
     const token = localStorage.getItem('auth_token') || '';
     
-    const res = await fetch('/api/trainer/assessment', {
+    const res = await fetch('/api/trainer/assessment', { credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ enrollmentId: id, marks, remarks, status: 'COMPLETED' })

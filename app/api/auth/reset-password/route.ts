@@ -2,6 +2,7 @@
 // Token validation and password reset
 
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { sanitizeEmail, hashPassword, validatePasswordStrength, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 import { checkRateLimit, getClientIP, RateLimits } from '../../../library/rateLimiter';
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { token, newPassword, confirmPassword } = body;
     const email = sanitizeEmail(body.email || '');
 

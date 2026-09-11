@@ -58,7 +58,7 @@ const [trainingMode, setTrainingMode] = useState("");
       formData.append("transactionId", transactionId);
       formData.append("paymentProof", file);
 
-      const res = await fetch("/api/payment", {
+      const res = await fetch("/api/payment", { credentials: 'include',
         method: "POST",
         body: formData,
       });

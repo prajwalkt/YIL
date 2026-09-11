@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import PasswordPolicy from '../components/PasswordPolicy';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -16,24 +17,18 @@ export default function ChangePasswordPage() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) { router.push('/login'); }
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) router.push('/login');
+      })
+      .catch(() => router.push('/login'));
   }, [router]);
 
-  // Password strength checker
-  const getStrength = (pwd: string) => {
-    let score = 0;
-    if (pwd.length >= 8) score++;
-    if (/[A-Z]/.test(pwd)) score++;
-    if (/[a-z]/.test(pwd)) score++;
-    if (/[0-9]/.test(pwd)) score++;
-    if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) score++;
-    return score;
+  // Validation
+  const isValidPassword = (p: string) => {
+    return p.length >= 8 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p);
   };
-
-  const strengthLabels = ['', 'Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
-  const strengthColors = ['', '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981'];
-  const strength = getStrength(newPassword);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,25 +40,28 @@ export default function ChangePasswordPage() {
     if (newPassword !== confirmPassword) {
       setError('New passwords do not match.'); return;
     }
-    if (strength < 4) {
-      setError('Password is too weak. Use uppercase, lowercase, numbers and special characters.'); return;
+    if (!isValidPassword(newPassword)) {
+      setError('Password does not meet all policy requirements.'); return;
     }
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('auth_token') || '';
-      const res = await fetch('/api/auth/change-password', {
+      const res = await fetch('/api/auth/change-password', { 
+        credentials: 'include',
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
       });
       const data = await res.json();
 
       if (data.success) {
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
         setSuccess('Password changed successfully! Redirecting to your dashboard...');
-        // Update stored token
-        localStorage.setItem('auth_token', data.token);
-        setTimeout(() => router.push(data.redirectTo || '/'), 1500);
+        setTimeout(() => {
+          window.location.href = data.redirectTo || '/';
+        }, 1500);
       } else {
         setError(data.message || 'Failed to change password.');
       }
@@ -150,17 +148,7 @@ export default function ChangePasswordPage() {
                   {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {/* Strength meter */}
-              {newPassword.length > 0 && (
-                <div className="mt-2">
-                  <div className="flex gap-1 mb-1">
-                    {[1,2,3,4,5].map(i => (
-                      <div key={i} className="flex-1 h-1.5 rounded-full transition-all" style={{ backgroundColor: i <= strength ? strengthColors[strength] : 'rgba(255,255,255,0.15)' }} />
-                    ))}
-                  </div>
-                  <p className="text-xs" style={{ color: strengthColors[strength] }}>{strengthLabels[strength]}</p>
-                </div>
-              )}
+              <PasswordPolicy password={newPassword} dark={true} />
             </div>
 
             {/* Confirm Password */}
@@ -185,22 +173,6 @@ export default function ChangePasswordPage() {
               {confirmPassword && confirmPassword !== newPassword && (
                 <p className="text-red-300 text-xs mt-1">Passwords do not match</p>
               )}
-            </div>
-
-            {/* Password rules */}
-            <div className="bg-white/5 rounded-xl p-3 space-y-1">
-              {[
-                { label: 'At least 8 characters', valid: newPassword.length >= 8 },
-                { label: 'Uppercase letter (A-Z)', valid: /[A-Z]/.test(newPassword) },
-                { label: 'Lowercase letter (a-z)', valid: /[a-z]/.test(newPassword) },
-                { label: 'Number (0-9)', valid: /[0-9]/.test(newPassword) },
-                { label: 'Special character (!@#$...)', valid: /[!@#$%^&*]/.test(newPassword) },
-              ].map(rule => (
-                <div key={rule.label} className={`flex items-center gap-2 text-xs transition-colors ${rule.valid ? 'text-green-300' : 'text-white/40'}`}>
-                  <CheckCircle size={12} className={rule.valid ? 'text-green-400' : 'text-white/20'} />
-                  {rule.label}
-                </div>
-              ))}
             </div>
 
             <button

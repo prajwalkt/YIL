@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromRequest, requireRole, hashPassword, sanitizeEmail, sanitizeInput, validatePasswordStrength, auditLog } from '../../../library/auth';
+import { parseAndSanitizeBody } from '../../../library/validation';
+import { getUserFromRequest, requireRole, hashPassword, sanitizeEmail, validatePasswordStrength, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 import { checkRateLimit, getClientIP, RateLimits } from '../../../library/rateLimiter';
 
@@ -37,14 +38,14 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const email = sanitizeEmail(body.email || '');
     const role = body.role as string;
-    const firstName = sanitizeInput(body.firstName || '');
-    const lastName = sanitizeInput(body.lastName || '');
-    const phone = sanitizeInput(body.phone || '');
-    const organization = sanitizeInput(body.organization || '');
-    const country = sanitizeInput(body.country || '');
+    const firstName = body.firstName || '';
+    const lastName = body.lastName || '';
+    const phone = body.phone || '';
+    const organization = body.organization || '';
+    const country = body.country || '';
     const password = body.password || 'YTS@Temp2024!';
 
     if (!email || !role || !firstName || !lastName) {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'USER_CREATED', 'USERS', `Created ${role}: ${email}`, ip);
     return NextResponse.json({ success: true, message: 'User created successfully' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -81,22 +82,22 @@ export async function PUT(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { userId, role, isActive, isApproved, firstName, lastName, phone, organization, country } = body;
     if (!userId) return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
 
     const pool = await getConnection();
     await pool.request()
       .input('UserID', userId).input('Role', role).input('IsActive', isActive ? 1 : 0)
-      .input('IsApproved', isApproved ? 1 : 0).input('FirstName', sanitizeInput(firstName || ''))
-      .input('LastName', sanitizeInput(lastName || '')).input('Phone', sanitizeInput(phone || ''))
-      .input('Organization', sanitizeInput(organization || '')).input('Country', sanitizeInput(country || ''))
+      .input('IsApproved', isApproved ? 1 : 0).input('FirstName', firstName || '')
+      .input('LastName', lastName || '').input('Phone', phone || '')
+      .input('Organization', organization || '').input('Country', country || '')
       .query(`UPDATE LMS_Users SET Role=@Role,IsActive=@IsActive,IsApproved=@IsApproved,FirstName=@FirstName,LastName=@LastName,Phone=@Phone,Organization=@Organization,Country=@Country WHERE UserID=@UserID`);
 
     await auditLog(user!.userId, user!.email, 'USER_UPDATED', 'USERS', `Updated user ${userId}`, ip);
     return NextResponse.json({ success: true, message: 'User updated' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -116,6 +117,6 @@ export async function DELETE(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'USER_DELETED', 'USERS', `Soft deleted user ${userId}`, ip);
     return NextResponse.json({ success: true, message: 'User deactivated' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

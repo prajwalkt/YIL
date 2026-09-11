@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeFormData } from '../../../library/validation';
 import { getUserFromRequest, auditLog, hashPassword } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
+import { validateUploadedFile, ALLOWED_MIME_TYPES } from '../../../library/fileUpload';
 import * as XLSX from 'xlsx';
 
 export async function POST(request: NextRequest) {
@@ -8,11 +10,21 @@ export async function POST(request: NextRequest) {
   if (!user || user.role !== 'ADMIN') return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 403 });
 
   try {
-    const formData = await request.formData();
+    const formData = await parseAndSanitizeFormData(request);
     const type = formData.get('type') as string;
     const file = formData.get('file') as File;
 
     if (!type || !file) return NextResponse.json({ success: false, message: 'Type and file are required' }, { status: 400 });
+
+    const validation = await validateUploadedFile(file, {
+      allowedMimeTypes: ALLOWED_MIME_TYPES.DOCUMENT,
+      maxSizeBytes: 10 * 1024 * 1024,
+      allowedExtensions: ['.xlsx', '.xls'],
+    });
+
+    if (!validation.valid) {
+      return NextResponse.json({ success: false, message: validation.error }, { status: 400 });
+    }
 
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -90,6 +102,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: `Successfully imported ${importedCount} records.`, importedCount });
   } catch (e: any) {
     console.error('Bulk Import Error:', e);
-    return NextResponse.json({ success: false, message: e.message || 'Import failed' }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

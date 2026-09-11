@@ -1,6 +1,6 @@
 "use client";
-import LearnerPortal from '../../components/LearnerPortal';
+import AffiliatePortal from '../../components/AffiliatePortal';
 
 export default function AffiliatePage() {
-  return <LearnerPortal userRole="AFFILIATE" />;
+  return <AffiliatePortal />;
 }

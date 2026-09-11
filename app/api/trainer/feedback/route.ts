@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
   if (!requireRole(user, 'TRAINER', 'ADMIN')) return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 });
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { enrollmentId, ratings, comments, status } = body;
     // ratings = { "Content": 5, "Delivery": 4 }
 
@@ -110,6 +111,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Feedback saved', pdfUrl });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

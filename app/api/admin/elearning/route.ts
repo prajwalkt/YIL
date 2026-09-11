@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
+import fs from 'fs';
+import path from 'path';
 
 // GET — List all E-Learning content (optionally filter by courseId)
 export async function GET(request: NextRequest) {
@@ -24,7 +27,7 @@ export async function GET(request: NextRequest) {
     const result = await pool.request().query(query);
     return NextResponse.json({ success: true, content: result.recordset });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -36,7 +39,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { courseId, title, contentType, filePath, durationSec, sortOrder, isRequired, description, thumbnailPath } = body;
 
     if (!courseId || !title || !contentType || !filePath) {
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Content added successfully', contentId: result.recordset[0].ContentID });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -77,7 +80,7 @@ export async function PUT(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { contentId, title, contentType, filePath, durationSec, sortOrder, isRequired, description, thumbnailPath } = body;
 
     if (!contentId) return NextResponse.json({ success: false, message: 'contentId is required' }, { status: 400 });
@@ -104,7 +107,7 @@ export async function PUT(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'ELEARNING_CONTENT_UPDATED', 'ELEARNING', `Updated content ${contentId}`, ip);
     return NextResponse.json({ success: true, message: 'Content updated successfully' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -136,8 +139,7 @@ export async function DELETE(request: NextRequest) {
       const filePath = existing.recordset[0].FilePath;
       if (filePath && filePath.startsWith('/uploads/')) {
         try {
-          const fs = require('fs');
-          const path = require('path');
+
           const absPath = path.join(process.cwd(), 'public', filePath);
           if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
         } catch { /* file cleanup is best-effort */ }
@@ -147,6 +149,6 @@ export async function DELETE(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'ELEARNING_CONTENT_DELETED', 'ELEARNING', `Deleted content ${contentId}`, ip);
     return NextResponse.json({ success: true, message: 'Content deleted successfully' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

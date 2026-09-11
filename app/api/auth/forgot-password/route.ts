@@ -2,6 +2,7 @@
 // Secure token-based password reset flow
 
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAndSanitizeBody } from '../../../library/validation';
 import { sanitizeEmail, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 import { sendEmail } from '../../../library/email';
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const email = sanitizeEmail(body.email || '');
 
     if (!email) {

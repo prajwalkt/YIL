@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseAndSanitizeFormData } from "../../library/validation";
 import { getConnection } from "../../library/db";
 import { checkRateLimit, getClientIP, RateLimits } from "../../library/rateLimiter";
 import { validateUploadedFile, generateSafeFilename, ALLOWED_MIME_TYPES } from "../../library/fileUpload";
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const formData = await request.formData();
+    const formData = await parseAndSanitizeFormData(request);
     
     const registrationId = formData.get("registrationId")?.toString();
     const transactionId = formData.get("transactionId")?.toString();
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file
-    const validation = validateUploadedFile(paymentProof, {
+    const validation = await validateUploadedFile(paymentProof, {
       allowedMimeTypes: ALLOWED_MIME_TYPES.PAYMENT_PROOF,
       maxSizeBytes: 5 * 1024 * 1024,
       allowedExtensions: ['.jpg', '.jpeg', '.png', '.pdf'],

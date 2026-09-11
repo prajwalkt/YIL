@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromRequest, requireRole, sanitizeInput, auditLog } from '../../../library/auth';
+import { parseAndSanitizeBody } from '../../../library/validation';
+import { getUserFromRequest, requireRole, auditLog } from '../../../library/auth';
 import { getConnection } from '../../../library/db';
 
 export async function GET(request: NextRequest) {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     `);
     return NextResponse.json({ success: true, trainers: result.recordset });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   try {
-    const body = await request.json();
+    const body = await parseAndSanitizeBody(request);
     const { userId, employeeId, department, expertise, experienceYears, certifications, biography, linkedInURL, isApproved } = body;
     if (!userId) return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
 
@@ -39,18 +40,18 @@ export async function POST(request: NextRequest) {
 
     if (existing.recordset.length > 0) {
       await pool.request()
-        .input('UserID', userId).input('EmployeeID', sanitizeInput(employeeId || ''))
-        .input('Department', sanitizeInput(department || '')).input('Expertise', sanitizeInput(expertise || ''))
-        .input('ExperienceYears', Number(experienceYears) || 0).input('Certifications', sanitizeInput(certifications || ''))
-        .input('Biography', sanitizeInput(biography || '')).input('LinkedInURL', sanitizeInput(linkedInURL || ''))
+        .input('UserID', userId).input('EmployeeID', employeeId || '')
+        .input('Department', department || '').input('Expertise', expertise || '')
+        .input('ExperienceYears', Number(experienceYears) || 0).input('Certifications', certifications || '')
+        .input('Biography', biography || '').input('LinkedInURL', linkedInURL || '')
         .input('IsApproved', isApproved ? 1 : 0)
         .query(`UPDATE TrainerProfiles SET EmployeeID=@EmployeeID,Department=@Department,Expertise=@Expertise,ExperienceYears=@ExperienceYears,Certifications=@Certifications,Biography=@Biography,LinkedInURL=@LinkedInURL,IsApproved=@IsApproved,UpdatedAt=GETDATE() WHERE UserID=@UserID`);
     } else {
       await pool.request()
-        .input('UserID', userId).input('EmployeeID', sanitizeInput(employeeId || ''))
-        .input('Department', sanitizeInput(department || '')).input('Expertise', sanitizeInput(expertise || ''))
-        .input('ExperienceYears', Number(experienceYears) || 0).input('Certifications', sanitizeInput(certifications || ''))
-        .input('Biography', sanitizeInput(biography || '')).input('LinkedInURL', sanitizeInput(linkedInURL || ''))
+        .input('UserID', userId).input('EmployeeID', employeeId || '')
+        .input('Department', department || '').input('Expertise', expertise || '')
+        .input('ExperienceYears', Number(experienceYears) || 0).input('Certifications', certifications || '')
+        .input('Biography', biography || '').input('LinkedInURL', linkedInURL || '')
         .input('IsApproved', isApproved ? 1 : 0)
         .query(`INSERT INTO TrainerProfiles (UserID,EmployeeID,Department,Expertise,ExperienceYears,Certifications,Biography,LinkedInURL,IsApproved) VALUES (@UserID,@EmployeeID,@Department,@Expertise,@ExperienceYears,@Certifications,@Biography,@LinkedInURL,@IsApproved)`);
     }
@@ -58,6 +59,6 @@ export async function POST(request: NextRequest) {
     await auditLog(user!.userId, user!.email, 'TRAINER_PROFILE_SAVED', 'TRAINERS', `Saved profile for user ${userId}`, ip);
     return NextResponse.json({ success: true, message: 'Trainer profile saved' });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }
 }

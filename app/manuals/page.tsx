@@ -13,7 +13,7 @@ export default function ManualsPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token') || '';
-    fetch('/api/manuals', {
+    fetch('/api/manuals', { credentials: 'include',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(res => res.json())

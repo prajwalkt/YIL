@@ -3,7 +3,7 @@
 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from './db';
 
 const JWT_SECRET = (() => {
@@ -30,6 +30,7 @@ export interface JWTPayload {
   firstName: string;
   lastName: string;
   sessionId?: string;
+  mustChangePassword?: boolean;
   iat?: number;
   exp?: number;
 }
@@ -92,9 +93,10 @@ export function getUserFromRequest(req: NextRequest): AuthUser | null {
   const authHeader = req.headers.get('Authorization');
   const cookieToken = req.cookies.get('auth_token')?.value;
   
-  const token = authHeader?.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : cookieToken;
+  let token = cookieToken;
+  if (authHeader && authHeader.startsWith('Bearer ') && authHeader.length > 7) {
+    token = authHeader.slice(7);
+  }
   
   if (!token) return null;
   
@@ -159,14 +161,14 @@ export async function recordLoginAttempt(
         .query(`
           UPDATE LMS_Users 
           SET FailedLoginAttempts = FailedLoginAttempts + 1,
-              LockoutUntil = CASE WHEN FailedLoginAttempts >= 4 THEN DATEADD(MINUTE, 30, GETDATE()) ELSE LockoutUntil END
+              LockoutUntil = CASE WHEN FailedLoginAttempts >= 4 THEN DATEADD(MINUTE, 30, GETUTCDATE()) ELSE LockoutUntil END
           WHERE Email = @Email
         `);
     } else {
       // Reset on success
       await pool.request()
         .input('Email', email)
-        .query(`UPDATE LMS_Users SET FailedLoginAttempts = 0, LockoutUntil = NULL, LastLogin = GETDATE() WHERE Email = @Email`);
+        .query(`UPDATE LMS_Users SET FailedLoginAttempts = 0, LockoutUntil = NULL, LastLogin = GETUTCDATE() WHERE Email = @Email`);
     }
   } catch {}
 }
@@ -176,12 +178,19 @@ export async function isAccountLocked(email: string): Promise<boolean> {
     const pool = await getConnection();
     const result = await pool.request()
       .input('Email', email)
-      .query(`SELECT LockoutUntil, FailedLoginAttempts FROM LMS_Users WHERE Email = @Email`);
+      .query(`
+        SELECT 
+          LockoutUntil, 
+          FailedLoginAttempts,
+          CASE WHEN LockoutUntil IS NOT NULL AND LockoutUntil > GETUTCDATE() THEN 1 ELSE 0 END as IsTimeLocked
+        FROM LMS_Users 
+        WHERE Email = @Email
+      `);
     
     if (result.recordset.length === 0) return false;
-    const { LockoutUntil, FailedLoginAttempts } = result.recordset[0];
+    const { IsTimeLocked, FailedLoginAttempts } = result.recordset[0];
     
-    if (LockoutUntil && new Date(LockoutUntil) > new Date()) return true;
+    if (IsTimeLocked === 1) return true;
     if (FailedLoginAttempts >= 5) return true;
     return false;
   } catch {
@@ -232,7 +241,7 @@ export function sanitizeInput(input: string): string {
 }
 
 export function sanitizeEmail(email: string): string {
-  return email.toLowerCase().trim().replace(/[^a-z0-9@._\-+]/g, '').substring(0, 255);
+  return email.toLowerCase().trim().substring(0, 255);
 }
 
 /**
@@ -266,16 +275,13 @@ export function validateRedirectUrl(url: string): string {
 // Response helpers
 // ─────────────────────────────────────────────────────────
 export function unauthorizedResponse(message = 'Unauthorized') {
-  const { NextResponse } = require('next/server');
   return NextResponse.json({ success: false, message }, { status: 401 });
 }
 
 export function forbiddenResponse(message = 'Access denied') {
-  const { NextResponse } = require('next/server');
   return NextResponse.json({ success: false, message }, { status: 403 });
 }
 
 export function errorResponse(message: string, status = 500) {
-  const { NextResponse } = require('next/server');
   return NextResponse.json({ success: false, message }, { status });
 }
