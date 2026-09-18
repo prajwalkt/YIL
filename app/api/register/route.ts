@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getConnection } from "../../library/db";
 import { checkRateLimit, getClientIP, RateLimits } from "../../library/rateLimiter";
