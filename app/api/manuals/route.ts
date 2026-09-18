@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       // Public access: return only manuals without CourseID (publicly available)
-      const publicResult = await pool.request().query(`
+      const publicResult = await pool.query(`
         SELECT m.*, c.Title as CourseName 
         FROM InteractiveManuals m
         LEFT JOIN LMS_Courses c ON m.CourseID = c.CourseID
@@ -21,9 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Authenticated: return manuals for enrolled courses + public manuals
-    const result = await pool.request()
-      .input('UserID', user.userId)
-      .query(`
+    const result = await pool.query(`
         SELECT DISTINCT m.*, c.Title as CourseName 
         FROM InteractiveManuals m
         LEFT JOIN LMS_Courses c ON m.CourseID = c.CourseID
@@ -33,12 +31,12 @@ export async function GET(request: NextRequest) {
             OR EXISTS (
               SELECT 1 FROM Enrollments e 
               WHERE e.CourseID = m.CourseID 
-                AND e.StudentID = @UserID
+                AND e.StudentID = $1
                 AND e.Status IN ('ENROLLED','IN_PROGRESS','COMPLETED')
             )
           )
         ORDER BY m.CreatedAt DESC
-      `);
+      `, [user.userId]);
 
     return NextResponse.json({ success: true, manuals: result.recordset, isAuthenticated: true });
   } catch (error: any) {

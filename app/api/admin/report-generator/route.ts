@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const pool = await getConnection();
 
     if (action === 'getTemplates') {
-      const templates = await pool.request().query(`
+      const templates = await pool.query(`
         SELECT TemplateID, TemplateName, FiltersJSON, Layout, OutputType, SortBy, CreatedAt
         FROM ReportTemplates
         ORDER BY CreatedAt DESC
@@ -74,17 +74,10 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
     
     // Hardcoded UserID 1 for now (admin)
-    await pool.request()
-      .input('UserID', 1)
-      .input('TemplateName', templateName)
-      .input('FiltersJSON', JSON.stringify(filters))
-      .input('Layout', layout || 'Standard')
-      .input('OutputType', outputType || 'Display')
-      .input('SortBy', sortBy || 'CreatedAt')
-      .query(`
+    await pool.query(`
         INSERT INTO ReportTemplates (UserID, TemplateName, FiltersJSON, Layout, OutputType, SortBy)
-        VALUES (@UserID, @TemplateName, @FiltersJSON, @Layout, @OutputType, @SortBy)
-      `);
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [1, templateName, JSON.stringify(filters), layout || 'Standard', outputType || 'Display', sortBy || 'CreatedAt']);
 
     return NextResponse.json({ success: true, message: 'Template saved successfully.' });
   } catch (error: any) {

@@ -9,14 +9,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('UserID', user.userId)
-      .query(`
+    const result = await pool.query(`
         SELECT w.*, c.Title, c.StartDate, c.EndDate, c.Location
         FROM WaitingList w
         JOIN TrainingCalendar c ON w.CalendarID = c.CalendarID
-        WHERE w.StudentID = @UserID
-      `);
+        WHERE w.StudentID = $1
+      `, [user.userId]);
     return NextResponse.json({ success: true, waitlist: result.recordset });
   } catch (e: any) {
     return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
@@ -34,7 +32,7 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
     
     // Check if batch is full
-    const batchRes = await pool.request().input('CalendarID', calendarId).query(`SELECT MaxParticipants, CurrentEnrolled FROM TrainingCalendar WHERE CalendarID = @CalendarID`);
+    const batchRes = await pool.query(`SELECT MaxParticipants, CurrentEnrolled FROM TrainingCalendar WHERE CalendarID = $1`, [calendarId]);
     if (batchRes.recordset.length === 0) return NextResponse.json({ success: false, message: 'Batch not found' }, { status: 404 });
     
     const batch = batchRes.recordset[0];
@@ -43,25 +41,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if already in waitlist or enrolled
-    const checkRes = await pool.request()
-      .input('CalendarID', calendarId)
-      .input('UserID', user.userId)
-      .query(`
-        SELECT 1 FROM WaitingList WHERE CalendarID = @CalendarID AND StudentID = @UserID
+    const checkRes = await pool.query(`
+        SELECT 1 FROM WaitingList WHERE CalendarID = $1 AND StudentID = $2
         UNION
-        SELECT 1 FROM Enrollments WHERE CalendarID = @CalendarID AND StudentID = @UserID AND Status != 'DROPPED'
-      `);
+        SELECT 1 FROM Enrollments WHERE CalendarID = $3 AND StudentID = $4 AND Status != 'DROPPED'
+      `, [calendarId, user.userId, calendarId, user.userId]);
       
     if (checkRes.recordset.length > 0) {
       return NextResponse.json({ success: false, message: 'Already enrolled or in waiting list' }, { status: 400 });
     }
 
-    await pool.request()
-      .input('CalendarID', calendarId)
-      .input('UserID', user.userId)
-      .query(`
-        INSERT INTO WaitingList (CalendarID, StudentID) VALUES (@CalendarID, @UserID)
-      `);
+    await pool.query(`
+        INSERT INTO WaitingList (CalendarID, StudentID) VALUES ($1, $2)
+      `, [calendarId, user.userId]);
 
     return NextResponse.json({ success: true, message: 'Successfully joined the waiting list' });
   } catch (e: any) {

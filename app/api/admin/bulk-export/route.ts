@@ -17,19 +17,19 @@ export async function GET(request: NextRequest) {
     let data: any[] = [];
 
     if (type === 'users') {
-      const res = await pool.request().query(`SELECT UserID, Email, Role, FirstName, LastName, Organization, Country, IsActive FROM LMS_Users`);
+      const res = await pool.query(`SELECT UserID, Email, Role, FirstName, LastName, Organization, Country, IsActive FROM LMS_Users`);
       data = res.recordset;
     } else if (type === 'courses') {
-      const res = await pool.request().query(`SELECT CourseID, Title, Code, Duration, FeeUSD, Mode, Status, Category FROM LMS_Courses`);
+      const res = await pool.query(`SELECT CourseID, Title, Code, Duration, FeeUSD, Mode, Status, Category FROM LMS_Courses`);
       data = res.recordset;
     } else if (type === 'payments') {
-      const res = await pool.request().query(`SELECT PaymentID, StudentName, CourseName, Amount, Currency, Status, PaidAt FROM PaymentTracking`);
+      const res = await pool.query(`SELECT PaymentID, StudentName, CourseName, Amount, Currency, Status, PaidAt FROM PaymentTracking`);
       data = res.recordset;
     } else if (type === 'certificates') {
-      const res = await pool.request().query(`SELECT CertificateNo, ParticipantName, CourseName, TrainerName, IssueDate FROM Certificates`);
+      const res = await pool.query(`SELECT CertificateNo, ParticipantName, CourseName, TrainerName, IssueDate FROM Certificates`);
       data = res.recordset;
     } else if (type === 'attendance') {
-      const res = await pool.request().query(`
+      const res = await pool.query(`
         SELECT a.AttendanceID, c.Title, u.FirstName + ' ' + u.LastName as StudentName, a.SessionDate, a.Status
         FROM Attendance a
         JOIN TrainingCalendar c ON a.CalendarID = c.CalendarID

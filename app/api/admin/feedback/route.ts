@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const result = await req.query(query);
 
     // Compute averages
-    const avgResult = await pool.request().query(`
+    const avgResult = await pool.query(`
       SELECT 
         AVG(CAST(OverallScore AS FLOAT)) as AvgOverall,
         AVG(CAST(ContentScore AS FLOAT)) as AvgContent,
@@ -69,14 +69,7 @@ export async function POST(request: NextRequest) {
     if (!overallScore) return NextResponse.json({ success: false, message: 'Overall score required' }, { status: 400 });
 
     const pool = await getConnection();
-    await pool.request()
-      .input('StudentID', user.userId).input('ParticipantName', participantName || `${user.firstName} ${user.lastName}`)
-      .input('CourseID', courseId || null).input('TrainerID', trainerId || null)
-      .input('TrainerName', trainerName || '').input('OverallScore', Number(overallScore))
-      .input('ContentScore', Number(contentScore) || null).input('TrainerScore', Number(trainerScore) || null)
-      .input('FacilityScore', Number(facilityScore) || null).input('Remarks', remarks || '')
-      .input('TrainingDate', trainingDate || null)
-      .query(`INSERT INTO Feedback (StudentID,ParticipantName,CourseID,TrainerID,TrainerName,OverallScore,ContentScore,TrainerScore,FacilityScore,Remarks,TrainingDate) VALUES (@StudentID,@ParticipantName,@CourseID,@TrainerID,@TrainerName,@OverallScore,@ContentScore,@TrainerScore,@FacilityScore,@Remarks,@TrainingDate)`);
+    await pool.query(`INSERT INTO Feedback (StudentID,ParticipantName,CourseID,TrainerID,TrainerName,OverallScore,ContentScore,TrainerScore,FacilityScore,Remarks,TrainingDate) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [user.userId, participantName || `${user.firstName} ${user.lastName}`, courseId || null, trainerId || null, trainerName || '', Number(overallScore), Number(contentScore) || null, Number(trainerScore) || null, Number(facilityScore) || null, remarks || '', trainingDate || null]);
 
     return NextResponse.json({ success: true, message: 'Feedback submitted' });
   } catch (e: any) {

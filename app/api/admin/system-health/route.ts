@@ -12,17 +12,17 @@ export async function GET(request: NextRequest) {
     
     // DB Status (simple query to check latency)
     const startDb = Date.now();
-    await pool.request().query('SELECT 1');
+    await pool.query(`SELECT 1`);
     const dbLatency = Date.now() - startDb;
 
     // Active Sessions (last 24 hours)
-    const activeSessions = await pool.request().query(`
-      SELECT COUNT(*) as count FROM LMS_Sessions WHERE IsActive = 1 AND ExpiresAt > GETDATE()
+    const activeSessions = await pool.query(`
+      SELECT COUNT(*) as count FROM LMS_Sessions WHERE IsActive = 1 AND ExpiresAt > CURRENT_TIMESTAMP
     `);
 
     // Failed Jobs / Errors (last 24 hours)
-    const failedErrors = await pool.request().query(`
-      SELECT COUNT(*) as count FROM ErrorLogs WHERE Timestamp > DATEADD(day, -1, GETDATE())
+    const failedErrors = await pool.query(`
+      SELECT COUNT(*) as count FROM ErrorLogs WHERE Timestamp > DATEADD(day, -1, CURRENT_TIMESTAMP)
     `);
 
     // System info

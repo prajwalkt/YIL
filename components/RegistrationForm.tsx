@@ -75,7 +75,7 @@ export default function RegistrationForm({
       setCoursesLoading(true);
       try {
         const [calRes, courseRes] = await Promise.all([
-          fetch('/api/calendar'),
+            fetch('/api/calendar', { credentials: 'include' }),
           fetch('/api/register')
         ]);
         

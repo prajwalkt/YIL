@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT 
         r.Id, r.Name, r.Email, r.Course, r.TrainingMode, 
         r.OriginalStartDate, r.OriginalEndDate,
@@ -41,9 +41,7 @@ export async function POST(req: NextRequest) {
     if (action === 'REJECT') newStatus = 'REJECTED';
 
     if (action === 'MODIFY' && finalStartDate && finalEndDate) {
-      const regQuery = await pool.request()
-        .input('Id', registrationId)
-        .query(`SELECT Course, TrainingMode FROM Registrations WHERE Id = @Id`);
+      const regQuery = await pool.query(`SELECT Course, TrainingMode FROM Registrations WHERE Id = $1`, [registrationId]);
         
       if (regQuery.recordset.length > 0) {
         const reg = regQuery.recordset[0];
@@ -51,9 +49,7 @@ export async function POST(req: NextRequest) {
           const { calculateWorkingDays } = await import("../../../library/dateUtils");
           const workingDays = calculateWorkingDays(finalStartDate, finalEndDate);
           
-          const courseCheck = await pool.request()
-            .input("CourseTitle", reg.Course)
-            .query(`SELECT DurationDays FROM LMS_Courses WHERE Title = @CourseTitle AND Status = 'ACTIVE'`);
+          const courseCheck = await pool.query(`SELECT DurationDays FROM LMS_Courses WHERE Title = $1 AND Status = 'ACTIVE'`, [reg.Course]);
             
           if (courseCheck.recordset.length > 0) {
             const requiredDays = courseCheck.recordset[0].DurationDays;
@@ -68,24 +64,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const updateResult = await pool.request()
-      .input('Id', registrationId)
-      .input('Status', newStatus)
-      .input('FinalStart', finalStartDate || null)
-      .input('FinalEnd', finalEndDate || null)
-      .input('Remarks', remarks || null)
-      .input('TMId', tmUserId || null)
-      .query(`
+    const updateResult = await pool.query(`
         UPDATE Registrations 
         SET 
-          DateApprovalStatus = @Status,
-          FinalStartDate = CASE WHEN @Status = 'APPROVED' THEN @FinalStart ELSE NULL END,
-          FinalEndDate = CASE WHEN @Status = 'APPROVED' THEN @FinalEnd ELSE NULL END,
-          TMRemarks = @Remarks,
-          TMReviewedBy = @TMId,
-          TMReviewDate = GETDATE()
-        WHERE Id = @Id
-      `);
+          DateApprovalStatus = $1,
+          FinalStartDate = CASE WHEN $2 = 'APPROVED' THEN $3 ELSE NULL END,
+          FinalEndDate = CASE WHEN $4 = 'APPROVED' THEN $5 ELSE NULL END,
+          TMRemarks = $6,
+          TMReviewedBy = $7,
+          TMReviewDate = CURRENT_TIMESTAMP
+        WHERE Id = $8
+      `, [newStatus, newStatus, finalStartDate || null, newStatus, finalEndDate || null, remarks || null, tmUserId || null, registrationId]);
       
     if (updateResult.rowsAffected[0] === 0) {
       return NextResponse.json({ success: false, message: 'Registration not found or no changes made' }, { status: 404 });

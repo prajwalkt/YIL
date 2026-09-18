@@ -18,13 +18,13 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
     
     // Get enrollment details
-    const enrRes = await pool.request().input('EnrollmentID', Number(enrollmentId)).query(`
+    const enrRes = await pool.query(`
       SELECT e.*, u.FirstName, u.LastName, u.Email, c.Title as CourseTitle
       FROM Enrollments e
       JOIN LMS_Users u ON e.StudentID = u.UserID
       JOIN LMS_Courses c ON e.CourseID = c.CourseID
-      WHERE e.EnrollmentID = @EnrollmentID
-    `);
+      WHERE e.EnrollmentID = $1
+    `, [Number(enrollmentId)]);
     
     if (enrRes.recordset.length === 0) return NextResponse.json({ success: false, message: 'Enrollment not found' }, { status: 404 });
     const enr = enrRes.recordset[0];
@@ -35,31 +35,16 @@ export async function POST(request: NextRequest) {
       totalScore += Number(marks[key]) || 0;
     }
 
-    // Insert into Assessments
-    const req = pool.request();
-    req.input('RegistrationID', enr.RegistrationID);
-    req.input('StudentID', enr.StudentID);
-    req.input('TrainerID', user!.userId);
-    req.input('CourseID', enr.CourseID);
-    req.input('CalendarID', enr.CalendarID);
-    req.input('OverallScore', totalScore);
-    req.input('Remarks', remarks || '');
-    req.input('Status', status || 'COMPLETED');
-
-    const assessRes = await req.query(`
+    const assessRes = await pool.query(`
       INSERT INTO Assessments (RegistrationID, StudentID, TrainerID, CourseID, CalendarID, OverallScore, Remarks, Status)
-      OUTPUT INSERTED.AssessmentID
-      VALUES (@RegistrationID, @StudentID, @TrainerID, @CourseID, @CalendarID, @OverallScore, @Remarks, @Status)
-    `);
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING AssessmentID
+    `, [enr.RegistrationID, enr.StudentID, user!.userId, enr.CourseID, enr.CalendarID, totalScore, remarks || '', status || 'COMPLETED']);
     const assessmentId = assessRes.recordset[0].AssessmentID;
 
     // Insert Responses
     for (const question in marks) {
-      await pool.request()
-        .input('AssessmentID', assessmentId)
-        .input('Question', question)
-        .input('Marks', Number(marks[question]))
-        .query(`INSERT INTO AssessmentResponses (AssessmentID, Question, Marks) VALUES (@AssessmentID, @Question, @Marks)`);
+      await pool.query(`INSERT INTO AssessmentResponses (AssessmentID, Question, Marks) VALUES ($1, $2, $3)`, [assessmentId, question, Number(marks[question])]);
     }
 
     // Generate PDF
@@ -102,19 +87,16 @@ export async function POST(request: NextRequest) {
     const pdfUrl = `/uploads/reports/${fileName}`;
 
     // Update PDF path in DB
-    await pool.request().input('PDFPath', pdfUrl).input('AssessmentID', assessmentId).query(`
-      UPDATE Assessments SET PDFPath = @PDFPath WHERE AssessmentID = @AssessmentID
-    `);
+    await pool.query(`
+      UPDATE Assessments SET PDFPath = $1 WHERE AssessmentID = $2
+    `, [pdfUrl, assessmentId]);
 
     // Update Enrollment and Registration if COMPLETED
     if (status === 'COMPLETED' || status === 'PASSED') {
-      await pool.request()
-        .input('EnrollmentID', enr.EnrollmentID)
-        .input('RegistrationID', enr.RegistrationID)
-        .query(`
-          UPDATE Enrollments SET Status = 'COMPLETED', ProgressPercent = 100 WHERE EnrollmentID = @EnrollmentID;
-          UPDATE Registrations SET Status = 'COMPLETED' WHERE Id = @RegistrationID;
-        `);
+      await pool.query(`
+          UPDATE Enrollments SET Status = 'COMPLETED', ProgressPercent = 100 WHERE EnrollmentID = $1;
+          UPDATE Registrations SET Status = 'COMPLETED' WHERE Id = $2;
+        `, [enr.EnrollmentID, enr.RegistrationID]);
     }
 
     // Email to Student

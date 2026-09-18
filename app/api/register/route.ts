@@ -6,7 +6,7 @@ import { parseAndSanitizeFormData } from "../../library/validation";
 export async function GET() {
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT 
         CourseID as id,
         Title as name, 
@@ -109,12 +109,12 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
 
     if (selectedSlotId) {
-      const slotCheck = await pool.request().input("SlotID", selectedSlotId).query(`
+      const slotCheck = await pool.query(`
         SELECT MaxParticipants, StartDate, EndDate,
-               (SELECT COUNT(*) FROM Registrations WHERE SelectedSlotID = @SlotID AND Status NOT IN ('REJECTED', 'CANCELLED')) as CurrentEnrolled
+               (SELECT COUNT(*) FROM Registrations WHERE SelectedSlotID = $1 AND Status NOT IN ('REJECTED', 'CANCELLED')) as CurrentEnrolled
         FROM TrainingCalendar 
-        WHERE CalendarID = @SlotID
-      `);
+        WHERE CalendarID = $2
+      `, [selectedSlotId, selectedSlotId]);
       const slot = slotCheck.recordset[0];
       if (slot && slot.CurrentEnrolled >= slot.MaxParticipants) {
         return NextResponse.json({ success: false, message: 'This batch is fully booked.' }, { status: 400 });
@@ -130,9 +130,9 @@ export async function POST(request: NextRequest) {
       const { calculateWorkingDays } = await import("../../library/dateUtils");
       const workingDays = calculateWorkingDays(preferredStartDate, preferredEndDate);
       
-      const courseCheck = await pool.request().input("CourseTitle", course).query(`
-        SELECT DurationDays FROM LMS_Courses WHERE Title = @CourseTitle AND Status = 'ACTIVE'
-      `);
+      const courseCheck = await pool.query(`
+        SELECT DurationDays FROM LMS_Courses WHERE Title = $1 AND Status = 'ACTIVE'
+      `, [course]);
       
       if (courseCheck.recordset.length > 0) {
         const requiredDays = courseCheck.recordset[0].DurationDays;
@@ -146,38 +146,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Use parameterized queries to prevent SQL injection
-    const result = await pool
-      .request()
-      .input("Name", name)
-      .input("Email", email)
-      .input("Phone", phone || null)
-      .input("Organization", organization || null)
-      .input("Country", country || null)
-      .input("GraduationYear", graduationYear)
-      .input("Course", course)
-      .input("TrainingMode", trainingMode)
-      .input("SponsoredBy", sponsor)
-      .input("RegistrationType", sponsor.toUpperCase() === "ORGANIZATION" ? "ORGANIZATION" : "SELF")
-      .input("SpecialInstructions", instructions || null)
-      .input("PaymentProofPath", paymentProofPath || null)
-      .input("Status", "PENDING")
-      .input("SelectedSlotID", selectedSlotId)
-      .input("OriginalStartDate", preferredStartDate || null)
-      .input("OriginalEndDate", preferredEndDate || null)
-      .input("DateApprovalStatus", (!selectedSlotId && preferredStartDate) ? "PENDING" : "NOT_REQUESTED")
-      .query(`
+    const result = await pool.query(`
         INSERT INTO Registrations
         (
             Name, Email, Phone, Organization, Country, GraduationYear,
             Course, TrainingMode, SponsoredBy, SpecialInstructions, PaymentProofPath, Status, RegistrationType, SelectedSlotID, OriginalStartDate, OriginalEndDate, DateApprovalStatus
         )
-        OUTPUT INSERTED.Id
         VALUES
         (
-            @Name, @Email, @Phone, @Organization, @Country, @GraduationYear,
-            @Course, @TrainingMode, @SponsoredBy, @SpecialInstructions, @PaymentProofPath, @Status, @RegistrationType, @SelectedSlotID, @OriginalStartDate, @OriginalEndDate, @DateApprovalStatus
+            $1, $2, $3, $4, $5, $6,
+            $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
         )
-      `);
+        RETURNING Id
+      `, [name, email, phone || null, organization || null, country || null, graduationYear, course, trainingMode, sponsor, instructions || null, paymentProofPath || null, "PENDING", sponsor.toUpperCase() === "ORGANIZATION" ? "ORGANIZATION" : "SELF", selectedSlotId, preferredStartDate || null, preferredEndDate || null, (!selectedSlotId && preferredStartDate) ? "PENDING" : "NOT_REQUESTED"]);
 
     const newRegId = result.recordset[0]?.Id;
 

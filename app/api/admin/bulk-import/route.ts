@@ -39,58 +39,32 @@ export async function POST(request: NextRequest) {
     if (type === 'users') {
       for (const row of data) {
         if (!row.Email || !row.Role || !row.FirstName) continue;
-        const exists = await pool.request().input('Email', row.Email).query(`SELECT UserID FROM LMS_Users WHERE Email = @Email`);
+        const exists = await pool.query(`SELECT UserID FROM LMS_Users WHERE Email = $1`, [row.Email]);
         if (exists.recordset.length === 0) {
           const defaultPassword = await hashPassword('Yokogawa@123');
-          await pool.request()
-            .input('Email', row.Email)
-            .input('PasswordHash', defaultPassword)
-            .input('Role', row.Role.toUpperCase())
-            .input('FirstName', row.FirstName)
-            .input('LastName', row.LastName || '')
-            .input('Phone', row.Phone || '')
-            .input('Organization', row.Organization || '')
-            .input('Country', row.Country || '')
-            .query(`
+          await pool.query(`
               INSERT INTO LMS_Users (Email, PasswordHash, Role, FirstName, LastName, Phone, Organization, Country, IsActive, IsApproved, MustChangePassword, CreatedAt)
-              VALUES (@Email, @PasswordHash, @Role, @FirstName, @LastName, @Phone, @Organization, @Country, 1, 1, 1, GETDATE())
-            `);
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, 1, 1, CURRENT_TIMESTAMP)
+            `, [row.Email, defaultPassword, row.Role.toUpperCase(), row.FirstName, row.LastName || '', row.Phone || '', row.Organization || '', row.Country || '']);
           importedCount++;
         }
       }
     } else if (type === 'courses') {
       for (const row of data) {
         if (!row.Title || !row.Code) continue;
-        await pool.request()
-          .input('Title', row.Title)
-          .input('Code', row.Code)
-          .input('Description', row.Description || '')
-          .input('Duration', row.Duration || '')
-          .input('FeeUSD', row.FeeUSD || 0)
-          .input('Mode', row.Mode || 'VILT')
-          .input('Status', row.Status || 'Active')
-          .input('Category', row.Category || 'General')
-          .input('CreatedBy', user.userId)
-          .query(`
+        await pool.query(`
             INSERT INTO LMS_Courses (Title, Code, Description, Duration, FeeUSD, Mode, Status, Category, CreatedBy, CreatedAt)
-            VALUES (@Title, @Code, @Description, @Duration, @FeeUSD, @Mode, @Status, @Category, @CreatedBy, GETDATE())
-          `);
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+          `, [row.Title, row.Code, row.Description || '', row.Duration || '', row.FeeUSD || 0, row.Mode || 'VILT', row.Status || 'Active', row.Category || 'General', user.userId]);
         importedCount++;
       }
     } else if (type === 'calendar') {
       for (const row of data) {
         if (!row.CourseID || !row.StartDate) continue;
-        await pool.request()
-          .input('CourseID', row.CourseID)
-          .input('Title', row.Title || 'Scheduled Training')
-          .input('TrainingType', row.TrainingType || 'VILT')
-          .input('StartDate', new Date(row.StartDate))
-          .input('EndDate', row.EndDate ? new Date(row.EndDate) : new Date(row.StartDate))
-          .input('Status', row.Status || 'Scheduled')
-          .query(`
+        await pool.query(`
             INSERT INTO TrainingCalendar (CourseID, Title, TrainingType, StartDate, EndDate, Status, CreatedAt)
-            VALUES (@CourseID, @Title, @TrainingType, @StartDate, @EndDate, @Status, GETDATE())
-          `);
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+          `, [row.CourseID, row.Title || 'Scheduled Training', row.TrainingType || 'VILT', new Date(row.StartDate), row.EndDate ? new Date(row.EndDate) : new Date(row.StartDate), row.Status || 'Scheduled']);
         importedCount++;
       }
     } else {

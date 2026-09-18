@@ -20,9 +20,7 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
     
     // 1. Get Registration Details
-    const regCheck = await pool.request()
-      .input('RegID', registrationId)
-      .query(`SELECT * FROM Registrations WHERE Id = @RegID AND Status IN ('APPROVED', 'WAITING_BATCH')`);
+    const regCheck = await pool.query(`SELECT * FROM Registrations WHERE Id = $1 AND Status IN ('APPROVED', 'WAITING_BATCH')`, [registrationId]);
     
     if (regCheck.recordset.length === 0) {
       return NextResponse.json({ success: false, message: 'Registration not found or not approved' }, { status: 404 });
@@ -30,7 +28,7 @@ export async function POST(request: NextRequest) {
     const reg = regCheck.recordset[0];
 
     // 2. Get Course ID from Course Title
-    const courseCheck = await pool.request().input('CourseTitle', reg.Course).query(`SELECT CourseID FROM LMS_Courses WHERE Title = @CourseTitle`);
+    const courseCheck = await pool.query(`SELECT CourseID FROM LMS_Courses WHERE Title = $1`, [reg.Course]);
     const courseId = courseCheck.recordset.length > 0 ? courseCheck.recordset[0].CourseID : 0;
 
     if (courseId === 0) {
@@ -38,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Ensure student exists in LMS_Users
-    const userCheck = await pool.request().input('Email', reg.Email).query(`SELECT UserID FROM LMS_Users WHERE Email = @Email`);
+    const userCheck = await pool.query(`SELECT UserID FROM LMS_Users WHERE Email = $1`, [reg.Email]);
     let studentId = 0;
     if (userCheck.recordset.length === 0) {
       const salt = await bcrypt.genSalt(10);
@@ -47,27 +45,18 @@ export async function POST(request: NextRequest) {
       const fName = nameParts[0];
       const lName = nameParts.slice(1).join(' ');
       
-      const insertUser = await pool.request()
-        .input('FirstName', fName)
-        .input('LastName', lName)
-        .input('Email', reg.Email)
-        .input('Phone', reg.Phone || '')
-        .input('PasswordHash', hash)
-        .input('Role', 'STUDENT')
-        .input('Organization', reg.Organization || '')
-        .input('Country', reg.Country || '')
-        .query(`
+      const insertUser = await pool.query(`
           INSERT INTO LMS_Users (FirstName, LastName, Email, Phone, PasswordHash, Role, Organization, Country, IsApproved, IsActive)
-          OUTPUT INSERTED.UserID
-          VALUES (@FirstName, @LastName, @Email, @Phone, @PasswordHash, @Role, @Organization, @Country, 1, 1)
-        `);
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, 1)
+          RETURNING UserID
+        `, [fName, lName, reg.Email, reg.Phone || '', hash, 'STUDENT', reg.Organization || '', reg.Country || '']);
       studentId = insertUser.recordset[0].UserID;
     } else {
       studentId = userCheck.recordset[0].UserID;
     }
 
     // 4. Check Batch Capacity
-    const calCheck = await pool.request().input('CalendarID', calendarId).query(`SELECT CurrentEnrolled, MaxParticipants FROM TrainingCalendar WHERE CalendarID = @CalendarID`);
+    const calCheck = await pool.query(`SELECT CurrentEnrolled, MaxParticipants FROM TrainingCalendar WHERE CalendarID = $1`, [calendarId]);
     if (calCheck.recordset.length === 0) {
       return NextResponse.json({ success: false, message: 'Batch not found' }, { status: 404 });
     }
@@ -77,10 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Check if already enrolled in this exact batch
-    const existingEnrollment = await pool.request()
-      .input('StudentID', studentId)
-      .input('CalendarID', calendarId)
-      .query(`SELECT EnrollmentID FROM Enrollments WHERE StudentID = @StudentID AND CalendarID = @CalendarID`);
+    const existingEnrollment = await pool.query(`SELECT EnrollmentID FROM Enrollments WHERE StudentID = $1 AND CalendarID = $2`, [studentId, calendarId]);
     
     if (existingEnrollment.recordset.length > 0) {
       return NextResponse.json({ success: false, message: 'Student is already enrolled in this batch' }, { status: 400 });
@@ -88,25 +74,16 @@ export async function POST(request: NextRequest) {
 
     // 6. Execute Assignment Transaction
     // Insert Enrollment
-    await pool.request()
-      .input('StudentID', studentId)
-      .input('CourseID', courseId)
-      .input('RegistrationID', reg.Id)
-      .input('CalendarID', calendarId)
-      .query(`
+    await pool.query(`
         INSERT INTO Enrollments (StudentID, CourseID, RegistrationID, CalendarID, Status)
-        VALUES (@StudentID, @CourseID, @RegistrationID, @CalendarID, 'ENROLLED')
-      `);
+        VALUES ($1, $2, $3, $4, 'ENROLLED')
+      `, [studentId, courseId, reg.Id, calendarId]);
       
     // Increment Batch Enrollment Count
-    await pool.request()
-      .input('CalendarID', calendarId)
-      .query(`UPDATE TrainingCalendar SET CurrentEnrolled = ISNULL(CurrentEnrolled, 0) + 1 WHERE CalendarID = @CalendarID`);
+    await pool.query(`UPDATE TrainingCalendar SET CurrentEnrolled = COALESCE(CurrentEnrolled, 0) + 1 WHERE CalendarID = $1`, [calendarId]);
       
     // Update Registration Status
-    await pool.request()
-      .input('RegID', reg.Id)
-      .query(`UPDATE Registrations SET Status = 'ENROLLED' WHERE Id = @RegID`);
+    await pool.query(`UPDATE Registrations SET Status = 'ENROLLED' WHERE Id = $1`, [reg.Id]);
 
     await auditLog(user!.userId, user!.email, 'BATCH_ASSIGNED', 'TRAINING', `Assigned Reg ${reg.Id} to Batch ${calendarId}`, ip);
     

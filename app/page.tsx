@@ -53,7 +53,7 @@ export default function YTSProject() {
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_FRONTEND_ADMIN_PASSWORD || "fallback";
   const INITIAL_REGISTRATION_URL = "https://forms.gle/qU6ahK1KYA9GVr1E8";
   const PDF_UPLOAD_FORM_URL = "https://docs.google.com/forms/d/1MERTzKD9jY0DXhmGxoJiRq12u3ujfXLbXQu7tRUfjIo/viewform?embedded=true";
-  const getDriveImageUrl = (id: string): string => `https://drive.google.com/thumbnail?authuser=0&sz=w1600&id=${id}`;
+  const getDriveImageUrl = (id: string): string => `https://lh3.googleusercontent.com/d/${id}=w1600`;
 
   // Static Local PDF Calendar Links inside the public folder root
   const VILT_CALENDAR_PATH = "/vilt-calendar.pdf";
@@ -157,7 +157,7 @@ export default function YTSProject() {
   const [baseCourses, setBaseCourses] = useState<Course[]>([]);
 
   useEffect(() => {
-    fetch('/api/register')
+    fetch('/api/register', { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         if (d.success && Array.isArray(d.courses)) {
@@ -347,10 +347,10 @@ export default function YTSProject() {
         </div>
       )}
 
-      <header className="w-full h-32 relative flex items-center justify-end px-10 text-white overflow-hidden shadow-lg"
-        style={{ backgroundImage: `url('${getDriveImageUrl("1-bOd5_sYhjMP5_BsZNDQHkFbxcmXHsOK")}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-        <div className="absolute inset-0 bg-[#004098]/10"></div>
-      </header>
+        <header className="w-full h-32 relative flex items-center justify-end px-10 text-white overflow-hidden shadow-lg">
+          <img src={getDriveImageUrl("1-bOd5_sYhjMP5_BsZNDQHkFbxcmXHsOK")} alt="Header Background" referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover -z-10" />
+          <div className="absolute inset-0 bg-[#004098]/10"></div>
+        </header>
 
       <nav className="bg-slate-100 border-b sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 flex items-center h-16 overflow-x-auto lg:overflow-visible no-scrollbar">
@@ -660,9 +660,9 @@ export default function YTSProject() {
         {activeTab === "Contact Us" && (
           <div className="animate-in fade-in space-y-10 max-w-6xl mx-auto">
             <div className="bg-slate-50 rounded-3xl overflow-hidden border border-slate-200 shadow-sm flex flex-col md:flex-row min-h-[400px]">
-              <div className="md:w-5/12 relative bg-slate-200 h-64 md:h-auto">
-                <img src={getDriveImageUrl("1kObpKgixyg2wHwlygdJeGoMaBnSyPBGr")} alt="Office" className="w-full h-full object-cover" />
-              </div>
+                <div className="md:w-5/12 relative bg-slate-200 h-64 md:h-auto">
+                  <img src={getDriveImageUrl("1kObpKgixyg2wHwlygdJeGoMaBnSyPBGr")} alt="Office" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                </div>
               <div className="md:w-7/12 p-8 md:p-12 flex flex-col justify-center space-y-6">
                 <h2 className="text-2xl md:text-3xl font-bold text-[#004098]">Get in Touch</h2>
                 <p className="text-slate-600 text-sm leading-relaxed">For custom bulk training inquiries, institutional scheduling, or physical lab visits, connect directly with our coordination office.</p>

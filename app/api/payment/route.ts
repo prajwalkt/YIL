@@ -55,9 +55,7 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
 
     // Fetch Registration Details
-    const regQuery = await pool.request()
-      .input("Id", Number(registrationId))
-      .query(`SELECT * FROM Registrations WHERE Id = @Id`);
+    const regQuery = await pool.query(`SELECT * FROM Registrations WHERE Id = $1`, [Number(registrationId)]);
 
     if (regQuery.recordset.length === 0) {
       return NextResponse.json({ success: false, message: "Invalid Registration ID" }, { status: 404 });
@@ -65,34 +63,24 @@ export async function POST(request: NextRequest) {
     const reg = regQuery.recordset[0];
 
     // Insert into PaymentTracking if schema supports it, but first try updating Registrations
-    await pool.request()
-      .input("Id", Number(registrationId))
-      .input("PaymentProofPath", paymentProofPath)
-      .input("Status", "PENDING")
-      .query(`
+    await pool.query(`
         UPDATE Registrations 
-        SET PaymentProofPath = @PaymentProofPath, Status = @Status
-        WHERE Id = @Id
-      `);
+        SET PaymentProofPath = $1, Status = $2
+        WHERE Id = $3
+      `, [paymentProofPath, "PENDING", Number(registrationId)]);
 
     try {
-      await pool.request()
-        .input("RegistrationID", Number(registrationId))
-        .input("StudentName", reg.Name)
-        .input("CourseName", reg.Course)
-        .input("TransactionID", transactionId)
-        .input("PaymentProofPath", paymentProofPath)
-        .query(`
+      await pool.query(`
           INSERT INTO PaymentTracking (RegistrationID, StudentName, CourseName, TransactionID, PaymentProofPath, Status)
-          VALUES (@RegistrationID, @StudentName, @CourseName, @TransactionID, @PaymentProofPath, 'PENDING')
-        `);
+          VALUES ($1, $2, $3, $4, $5, 'PENDING')
+        `, [Number(registrationId), reg.Name, reg.Course, transactionId, paymentProofPath]);
     } catch (e) {
       console.warn("PaymentTracking insert failed (table might be missing), continuing with Registration update.", e);
     }
 
     // Send email to Finance
     try {
-      const financeUsers = await pool.request().query(`SELECT Email FROM LMS_Users WHERE Role='FINANCE' AND IsActive=1`);
+      const financeUsers = await pool.query(`SELECT Email FROM LMS_Users WHERE Role='FINANCE' AND IsActive=1`);
       for (const f of financeUsers.recordset) {
         await sendEmail({
           to: f.Email,

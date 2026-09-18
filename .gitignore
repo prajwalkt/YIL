@@ -23,3 +23,12 @@ Thumbs.db
 
 .vscode/
 .idea/
+.vercel
+.env*
+
+.env.neon
+
+backup_mssql.js
+lms_db_backup.json
+
+migrate_to_neon.js

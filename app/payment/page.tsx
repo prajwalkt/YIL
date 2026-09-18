@@ -154,14 +154,14 @@ const [trainingMode, setTrainingMode] = useState("");
 
               </div>
 
-              <p className="mt-8 font-semibold">
+              <p className="mt-8 font-semibold text-slate-800">
                 OR Upload Payment Screenshot
               </p>
 
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/jpg"
-                className="mt-3 w-full border rounded-xl p-4 bg-white"
+                className="mt-3 w-full border rounded-xl p-4 bg-white text-slate-800 file:bg-[#004098] file:text-white file:border-none file:px-4 file:py-2 file:rounded-lg file:font-bold file:cursor-pointer file:mr-4"
                 onChange={(e) => {
                   if (e.target.files) {
                     setFile(e.target.files[0]);
@@ -186,7 +186,7 @@ const [trainingMode, setTrainingMode] = useState("");
               <input
                 type="file"
                 accept=".pdf"
-                className="mt-6 w-full border rounded-xl p-4 bg-white"
+                className="mt-6 w-full border rounded-xl p-4 bg-white text-slate-800 file:bg-[#004098] file:text-white file:border-none file:px-4 file:py-2 file:rounded-lg file:font-bold file:cursor-pointer file:mr-4"
                 onChange={(e) => {
                   if (e.target.files) {
                     setFile(e.target.files[0]);
@@ -202,7 +202,7 @@ const [trainingMode, setTrainingMode] = useState("");
 
           <div>
 
-            <label className="font-bold text-lg">
+            <label className="font-bold text-lg text-slate-800">
               Transaction ID
             </label>
 
@@ -213,7 +213,7 @@ const [trainingMode, setTrainingMode] = useState("");
                 setTransactionId(e.target.value)
               }
               placeholder="Enter Transaction ID"
-              className="w-full mt-3 border rounded-xl p-4"
+              className="w-full mt-3 border rounded-xl p-4 text-slate-800 placeholder-slate-400"
             />
 
           </div>

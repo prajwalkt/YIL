@@ -20,18 +20,16 @@ export async function GET(request: NextRequest) {
       WHERE Status IN ('APPROVED', 'WAITING_BATCH')
     `;
 
+    const values = [];
+
     if (user!.role === 'TRAINER') {
-      query += ` AND TrainerId = @UserId`;
+      values.push(Number(user!.userId));
+      query += ` AND TrainerId = $1`;
     }
 
     query += ` ORDER BY AdminApprovedAt ASC, CreatedAt ASC`;
 
-    const req = pool.request();
-    if (user!.role === 'TRAINER') {
-      req.input('UserId', Number(user!.userId));
-    }
-
-    const result = await req.query(query);
+    const result = await pool.query(query, values);
 
     return NextResponse.json({ 
       success: true, 

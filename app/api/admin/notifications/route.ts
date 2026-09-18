@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`SELECT * FROM Notifications ORDER BY CreatedAt DESC`);
+    const result = await pool.query(`SELECT * FROM Notifications ORDER BY CreatedAt DESC`);
     return NextResponse.json({ success: true, notifications: result.recordset });
   } catch (e: any) {
     return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
@@ -30,18 +30,10 @@ export async function POST(request: NextRequest) {
     }
 
     const pool = await getConnection();
-    await pool.request()
-      .input('Title', title)
-      .input('Message', message)
-      .input('Priority', priority || 'NORMAL')
-      .input('RecipientRole', recipientRole || 'ALL')
-      .input('StartDate', startDate ? new Date(startDate) : null)
-      .input('ExpiryDate', expiryDate ? new Date(expiryDate) : null)
-      .input('CreatedBy', user!.userId)
-      .query(`
+    await pool.query(`
         INSERT INTO Notifications (Title, Message, Priority, RecipientRole, StartDate, ExpiryDate, CreatedBy)
-        VALUES (@Title, @Message, @Priority, @RecipientRole, @StartDate, @ExpiryDate, @CreatedBy)
-      `);
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [title, message, priority || 'NORMAL', recipientRole || 'ALL', startDate ? new Date(startDate) : null, expiryDate ? new Date(expiryDate) : null, user!.userId]);
 
     await auditLog(user!.userId, user!.email, 'CREATE_NOTIFICATION', 'NOTIFICATIONS', `Created notification: ${title}`, ip);
     return NextResponse.json({ success: true, message: 'Notification created successfully' });
@@ -62,7 +54,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ success: false, message: 'Notification ID required' }, { status: 400 });
 
     const pool = await getConnection();
-    await pool.request().input('ID', Number(id)).query(`DELETE FROM Notifications WHERE NotificationID = @ID`);
+    await pool.query(`DELETE FROM Notifications WHERE NotificationID = $1`, [Number(id)]);
 
     await auditLog(user!.userId, user!.email, 'DELETE_NOTIFICATION', 'NOTIFICATIONS', `Deleted notification ID: ${id}`, ip);
     return NextResponse.json({ success: true, message: 'Notification deleted successfully' });

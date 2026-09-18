@@ -11,7 +11,7 @@ async function hasRegistrationIDColumn(): Promise<boolean> {
   if (_hasRegistrationID !== null) return _hasRegistrationID;
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT COUNT(*) AS cnt
       FROM sys.columns
       WHERE object_id = OBJECT_ID('NotificationLog') AND name = 'RegistrationID'
@@ -40,33 +40,23 @@ export async function logNotification(
     const pool = await getConnection();
     const supportsRegID = await hasRegistrationIDColumn();
 
-    const req = pool.request()
-      .input('UserID', userId)
-      .input('Type', type)
-      .input('Channel', channel)
-      .input('Status', status)
-      .input('ErrorMessage', errorMsg || null)
-      .input('MessageContent', messageContent || null)
-      .input('RecipientName', recipientName || null);
-
     if (supportsRegID) {
       // Migration has been applied: persist the direct registration link
-      req.input('RegistrationID', registrationId ?? null);
-      await req.query(`
+      await pool.query(`
         INSERT INTO NotificationLog
           (UserID, Type, Channel, Status, ErrorMessage, MessageContent, RecipientName, RegistrationID)
         VALUES
-          (@UserID, @Type, @Channel, @Status, @ErrorMessage, @MessageContent, @RecipientName, @RegistrationID)
-      `);
+          ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [userId, type, channel, status, errorMsg || null, messageContent || null, recipientName || null, registrationId ?? null]);
     } else {
       // Migration not yet applied: write all columns that currently exist.
       // RecipientName is already present in the live schema — it is always written.
-      await req.query(`
+      await pool.query(`
         INSERT INTO NotificationLog
           (UserID, Type, Channel, Status, ErrorMessage, MessageContent, RecipientName)
         VALUES
-          (@UserID, @Type, @Channel, @Status, @ErrorMessage, @MessageContent, @RecipientName)
-      `);
+          ($1, $2, $3, $4, $5, $6, $7)
+      `, [userId, type, channel, status, errorMsg || null, messageContent || null, recipientName || null]);
     }
   } catch (err) {
     console.error('Failed to write notification log:', err);
@@ -129,7 +119,7 @@ export async function sendMultiChannelNotification({
   if (phone) {
     try {
       const pool = await getConnection();
-      const settingsResult = await pool.request().query(`
+      const settingsResult = await pool.query(`
         SELECT SettingKey, SettingValue FROM SystemSettings 
         WHERE SettingKey IN ('WhatsAppApiUrl', 'WhatsAppApiKey', 'WhatsAppSender', 'WhatsAppTemplateId')
       `);

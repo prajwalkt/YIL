@@ -47,22 +47,11 @@ export async function POST(request: NextRequest) {
     }
 
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('CourseID', Number(courseId))
-      .input('Title', title)
-      .input('ContentType', contentType)
-      .input('FilePath', filePath)
-      .input('DurationSec', durationSec || 0)
-      .input('SortOrder', sortOrder || 0)
-      .input('IsRequired', isRequired !== false ? 1 : 0)
-      .input('Description', description || '')
-      .input('ThumbnailPath', thumbnailPath || '')
-      .input('CreatedBy', user!.userId)
-      .query(`
+    const result = await pool.query(`
         INSERT INTO ELearningContent (CourseID, Title, ContentType, FilePath, DurationSec, SortOrder, IsRequired, Description, ThumbnailPath, CreatedBy)
-        OUTPUT INSERTED.ContentID
-        VALUES (@CourseID, @Title, @ContentType, @FilePath, @DurationSec, @SortOrder, @IsRequired, @Description, @ThumbnailPath, @CreatedBy)
-      `);
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING ContentID
+      `, [Number(courseId), title, contentType, filePath, durationSec || 0, sortOrder || 0, isRequired !== false ? 1 : 0, description || '', thumbnailPath || '', user!.userId]);
 
     await auditLog(user!.userId, user!.email, 'ELEARNING_CONTENT_ADDED', 'ELEARNING', `Added ${contentType}: ${title} for Course ${courseId}`, ip);
 
@@ -86,23 +75,13 @@ export async function PUT(request: NextRequest) {
     if (!contentId) return NextResponse.json({ success: false, message: 'contentId is required' }, { status: 400 });
 
     const pool = await getConnection();
-    await pool.request()
-      .input('ContentID', Number(contentId))
-      .input('Title', title || '')
-      .input('ContentType', contentType || 'VIDEO')
-      .input('FilePath', filePath || '')
-      .input('DurationSec', durationSec || 0)
-      .input('SortOrder', sortOrder || 0)
-      .input('IsRequired', isRequired !== false ? 1 : 0)
-      .input('Description', description || '')
-      .input('ThumbnailPath', thumbnailPath || '')
-      .query(`
+    await pool.query(`
         UPDATE ELearningContent
-        SET Title = @Title, ContentType = @ContentType, FilePath = @FilePath,
-            DurationSec = @DurationSec, SortOrder = @SortOrder, IsRequired = @IsRequired,
-            Description = @Description, ThumbnailPath = @ThumbnailPath, UpdatedAt = GETDATE()
-        WHERE ContentID = @ContentID
-      `);
+        SET Title = $1, ContentType = $2, FilePath = $3,
+            DurationSec = $4, SortOrder = $5, IsRequired = $6,
+            Description = $7, ThumbnailPath = $8, UpdatedAt = CURRENT_TIMESTAMP
+        WHERE ContentID = $9
+      `, [title || '', contentType || 'VIDEO', filePath || '', durationSec || 0, sortOrder || 0, isRequired !== false ? 1 : 0, description || '', thumbnailPath || '', Number(contentId)]);
 
     await auditLog(user!.userId, user!.email, 'ELEARNING_CONTENT_UPDATED', 'ELEARNING', `Updated content ${contentId}`, ip);
     return NextResponse.json({ success: true, message: 'Content updated successfully' });
@@ -126,13 +105,9 @@ export async function DELETE(request: NextRequest) {
     const pool = await getConnection();
 
     // Get file path before deleting (for optional file cleanup)
-    const existing = await pool.request()
-      .input('ContentID', Number(contentId))
-      .query(`SELECT FilePath FROM ELearningContent WHERE ContentID = @ContentID`);
+    const existing = await pool.query(`SELECT FilePath FROM ELearningContent WHERE ContentID = $1`, [Number(contentId)]);
 
-    await pool.request()
-      .input('ContentID', Number(contentId))
-      .query(`DELETE FROM ELearningContent WHERE ContentID = @ContentID`);
+    await pool.query(`DELETE FROM ELearningContent WHERE ContentID = $1`, [Number(contentId)]);
 
     // Optional: delete physical file
     if (existing.recordset.length > 0) {

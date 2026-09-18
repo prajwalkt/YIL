@@ -15,24 +15,20 @@ export async function GET(request: NextRequest) {
     const pool = await getConnection();
     
     // Get all students enrolled in this batch
-    const studentsResult = await pool.request()
-      .input('CalendarID', calendarId)
-      .query(`
+    const studentsResult = await pool.query(`
         SELECT e.EnrollmentID, e.StudentID, u.FirstName, u.LastName, u.Email, e.AttendancePercentage
         FROM Enrollments e
         JOIN LMS_Users u ON e.StudentID = u.UserID
-        WHERE e.CalendarID = @CalendarID AND e.Status != 'DROPPED'
-      `);
+        WHERE e.CalendarID = $1 AND e.Status != 'DROPPED'
+      `, [calendarId]);
 
     // Get all attendance records for this batch
-    const attendanceResult = await pool.request()
-      .input('CalendarID', calendarId)
-      .query(`
+    const attendanceResult = await pool.query(`
         SELECT AttendanceID, EnrollmentID, SessionDate, Status 
         FROM Attendance 
-        WHERE CalendarID = @CalendarID
+        WHERE CalendarID = $1
         ORDER BY SessionDate ASC
-      `);
+      `, [calendarId]);
 
     return NextResponse.json({ 
       success: true, 
@@ -56,55 +52,46 @@ export async function POST(request: NextRequest) {
     }
 
     const pool = await getConnection();
-    const transaction = pool.transaction();
-    await transaction.begin();
+    const transaction = await pool.connect();
+    await transaction.query('BEGIN');
 
     try {
       for (const rec of records) {
         // Delete existing record for this student on this date if it exists
-        await transaction.request()
-          .input('EnrollmentID', rec.enrollmentId)
-          .input('SessionDate', sessionDate)
-          .query(`DELETE FROM Attendance WHERE EnrollmentID = @EnrollmentID AND SessionDate = @SessionDate`);
+        await transaction.query(`DELETE FROM Attendance WHERE EnrollmentID = $1 AND SessionDate = $2`, [rec.enrollmentId, sessionDate]);
 
         // Insert new record
-        await transaction.request()
-          .input('EnrollmentID', rec.enrollmentId)
-          .input('CalendarID', calendarId)
-          .input('SessionDate', sessionDate)
-          .input('Status', rec.status)
-          .input('MarkedBy', user!.userId)
-          .query(`
+        await transaction.query(`
             INSERT INTO Attendance (EnrollmentID, CalendarID, SessionDate, Status, MarkedBy)
-            VALUES (@EnrollmentID, @CalendarID, @SessionDate, @Status, @MarkedBy)
-          `);
+            VALUES ($1, $2, $3, $4, $5)
+          `, [rec.enrollmentId, calendarId, sessionDate, rec.status, user!.userId]);
       }
 
       // Recalculate AttendancePercentage for all affected students
       for (const rec of records) {
-        await transaction.request()
-          .input('EnrollmentID', rec.enrollmentId)
-          .query(`
+        await transaction.query(`
             UPDATE Enrollments 
             SET AttendancePercentage = (
-              SELECT ISNULL(
+              SELECT COALESCE(
                 (CAST(SUM(CASE WHEN a.Status = 'PRESENT' THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(c.Duration, 0)) * 100, 
                 0
               )
               FROM Attendance a
               JOIN Enrollments e2 ON a.EnrollmentID = e2.EnrollmentID
               JOIN LMS_Courses c ON e2.CourseID = c.CourseID
-              WHERE a.EnrollmentID = @EnrollmentID
+              WHERE a.EnrollmentID = $1
             )
-            WHERE EnrollmentID = @EnrollmentID
-          `);
+            WHERE EnrollmentID = $2
+          `, [rec.enrollmentId, rec.enrollmentId]);
       }
 
-      await transaction.commit();
+      await transaction.query('COMMIT');
+      transaction.release();
       await auditLog(user!.userId, user!.email, 'ATTENDANCE_MARKED', 'TRAINING', `Marked attendance for Batch ${calendarId} on ${sessionDate}`, ip);
       return NextResponse.json({ success: true, message: 'Attendance saved successfully' });
     } catch (e) {
-      await transaction.rollback();
+      await transaction.query('ROLLBACK');
+      if (transaction.release) transaction.release();
       throw e;
     }
   } catch (e: any) {

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // Detect whether the RegistrationID column exists in the live schema.
     // This makes the API resilient both before and after the migration is applied.
-    const schemaCheck = await pool.request().query(`
+    const schemaCheck = await pool.query(`
       SELECT COUNT(*) AS cnt
       FROM sys.columns
       WHERE object_id = OBJECT_ID('NotificationLog') AND name = 'RegistrationID'
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     if (hasRegistrationID) {
       // Full query: three-tier COALESCE with direct Registrations link
-      result = await pool.request().query(`
+      result = await pool.query(`
         SELECT
           nl.LogID,
           nl.Type,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
           COALESCE(
             NULLIF(LTRIM(RTRIM(nl.RecipientName)), ''),
             r.Name,
-            NULLIF(LTRIM(RTRIM(ISNULL(u.FirstName, '') + ' ' + ISNULL(u.LastName, ''))), '')
+            NULLIF(LTRIM(RTRIM(COALESCE(u.FirstName, '') + ' ' + COALESCE(u.LastName, ''))), '')
           ) AS RecipientName,
           u.FirstName,
           u.LastName,
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       `);
     } else {
       // Fallback query: no RegistrationID column yet — use RecipientName + identity join
-      result = await pool.request().query(`
+      result = await pool.query(`
         SELECT
           nl.LogID,
           nl.Type,
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
           -- RecipientName stored in log takes priority; identity name is the fallback
           COALESCE(
             NULLIF(LTRIM(RTRIM(nl.RecipientName)), ''),
-            NULLIF(LTRIM(RTRIM(ISNULL(u.FirstName, '') + ' ' + ISNULL(u.LastName, ''))), '')
+            NULLIF(LTRIM(RTRIM(COALESCE(u.FirstName, '') + ' ' + COALESCE(u.LastName, ''))), '')
           ) AS RecipientName,
           u.FirstName,
           u.LastName,

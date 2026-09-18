@@ -42,19 +42,16 @@ export async function POST(request: NextRequest) {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('Email', email)
-      .input('TokenHash', tokenHash)
-      .query(`
+    const result = await pool.query(`
         SELECT u.UserID, u.FirstName 
         FROM LMS_Users u
         JOIN PasswordResetTokens prt ON u.UserID = prt.UserID
-        WHERE u.Email = @Email
-          AND prt.TokenHash = @TokenHash
-          AND prt.ExpiresAt > GETDATE()
+        WHERE u.Email = $1
+          AND prt.TokenHash = $2
+          AND prt.ExpiresAt > CURRENT_TIMESTAMP
           AND prt.IsUsed = 0
           AND u.IsActive = 1
-      `);
+      `, [email, tokenHash]);
 
     if (result.recordset.length === 0) {
       await auditLog(null, email, 'PASSWORD_RESET_FAILED', 'AUTH', 'Invalid or expired reset token', ip, 'FAILURE');
@@ -68,22 +65,18 @@ export async function POST(request: NextRequest) {
     const newHash = await hashPassword(newPassword);
 
     // Update password and clear reset token
-    await pool.request()
-      .input('Hash', newHash)
-      .input('UserID', user.UserID)
-      .input('TokenHash', tokenHash)
-      .query(`
+    await pool.query(`
         UPDATE LMS_Users
-        SET PasswordHash = @Hash,
+        SET PasswordHash = $1,
             MustChangePassword = 0,
             FailedLoginAttempts = 0,
             LockoutUntil = NULL
-        WHERE UserID = @UserID;
+        WHERE UserID = $2;
         
         UPDATE PasswordResetTokens
         SET IsUsed = 1
-        WHERE TokenHash = @TokenHash;
-      `);
+        WHERE TokenHash = $3;
+      `, [newHash, user.UserID, tokenHash]);
 
     await auditLog(user.UserID, email, 'PASSWORD_RESET_SUCCESS', 'AUTH', 'Password reset via email link', ip, 'SUCCESS');
 

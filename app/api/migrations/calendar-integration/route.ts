@@ -6,7 +6,7 @@ export async function GET() {
     const pool = await getConnection();
 
     // Add PreferredStartDate and PreferredEndDate to Registrations
-    await pool.request().query(`
+    await pool.query(`
       IF COL_LENGTH('Registrations', 'PreferredStartDate') IS NULL
       BEGIN
           ALTER TABLE Registrations ADD PreferredStartDate DATE NULL;

@@ -6,14 +6,12 @@ export async function GET(request: NextRequest) {
   if (!email) return NextResponse.json({ error: 'No email' });
 
   const pool = await getConnection();
-  const res = await pool.request()
-    .input('Email', email)
-    .query(`
+  const res = await pool.query(`
       SELECT Body FROM Messages 
       WHERE Body LIKE '%Temporary Password:%' 
-      AND ReceiverID = (SELECT UserID FROM LMS_Users WHERE Email = @Email)
+      AND ReceiverID = (SELECT UserID FROM LMS_Users WHERE Email = $1)
       ORDER BY SentAt DESC
-    `);
+    `, [email]);
   
   if (res.recordset.length > 0) {
     const match = res.recordset[0].Body.match(/Temporary Password:\s*([^\n\r<]+)/);

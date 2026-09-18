@@ -14,9 +14,7 @@ export async function GET(request: NextRequest) {
     if (!certId) return new NextResponse('Certificate ID required', { status: 400 });
 
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('CertificateID', Number(certId))
-      .query(`SELECT * FROM Certificates WHERE CertificateID = @CertificateID`);
+    const result = await pool.query(`SELECT * FROM Certificates WHERE CertificateID = $1`, [Number(certId)]);
     
     if (result.recordset.length === 0) {
       return new NextResponse('Certificate not found', { status: 404 });

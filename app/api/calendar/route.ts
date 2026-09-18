@@ -10,7 +10,7 @@ export async function GET() {
     let result;
     try {
       // Primary query — uses TMConfirmed column (available after schema migration)
-      result = await pool.request().query(`
+      result = await pool.query(`
         SELECT 
           tc.CalendarID,
           tc.Title,
@@ -27,7 +27,7 @@ export async function GET() {
           COALESCE(tc.TMConfirmed, 0) as TMConfirmed,
           0 as HolidayFlag,
           CASE 
-            WHEN tc.EndDate < GETDATE() THEN 'COMPLETED'
+            WHEN tc.EndDate < CURRENT_TIMESTAMP THEN 'COMPLETED'
             WHEN tc.Status = 'COMPLETED' THEN 'COMPLETED'
             WHEN COALESCE(tc.TMConfirmed, 0) = 1 THEN 'CONFIRMED'
             ELSE 'OPEN'
@@ -47,7 +47,7 @@ export async function GET() {
     } catch (primaryErr: any) {
       try {
         // Fallback — simpler query without TMConfirmed
-        result = await pool.request().query(`
+        result = await pool.query(`
           SELECT 
             tc.CalendarID, tc.Title, tc.TrainingType, tc.StartDate, tc.EndDate,
             COALESCE(tc.TrainerName, CONCAT(u.FirstName, ' ', u.LastName)) as TrainerName,
@@ -56,7 +56,7 @@ export async function GET() {
             COALESCE(r_agg.RegCount, 0) as RegistrationCount,
             tc.Status, 0 as TMConfirmed, 0 as HolidayFlag,
             CASE 
-              WHEN tc.EndDate < GETDATE() THEN 'COMPLETED'
+              WHEN tc.EndDate < CURRENT_TIMESTAMP THEN 'COMPLETED'
               WHEN tc.Status = 'COMPLETED' THEN 'COMPLETED'
               ELSE 'OPEN'
             END as ColorStatus

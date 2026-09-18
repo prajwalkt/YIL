@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     if (user.role === 'ADMIN' || user.role === 'FINANCE') {
       // Monthly Registrations & Revenue
-      const monthly = await pool.request().query(`
+      const monthly = await pool.query(`
         SELECT 
           FORMAT(CreatedAt, 'MMM') as month, 
           COUNT(Id) as registrations,
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       ];
 
       // Training Mode
-      const modes = await pool.request().query(`
+      const modes = await pool.query(`
         SELECT Mode as name, COUNT(*) as value
         FROM LMS_Courses
         GROUP BY Mode
@@ -41,15 +41,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (user.role === 'TM' || user.role === 'TRAINER') {
-      const schedule = await pool.request()
-        .input('UserID', user.userId)
-        .query(`
+      const schedule = await pool.query(`
           SELECT FORMAT(StartDate, 'MMM') as month, COUNT(*) as batches
           FROM TrainingCalendar
-          ${user.role === 'TRAINER' ? 'WHERE TrainerID = @UserID' : ''}
+          ${user.role === 'TRAINER' ? 'WHERE TrainerID = $1' : ''}
           GROUP BY FORMAT(StartDate, 'MMM'), MONTH(StartDate)
           ORDER BY MONTH(StartDate)
-        `);
+        `, [user.userId]);
       data.scheduleTrend = schedule.recordset.length ? schedule.recordset : [
         { month: 'Jan', batches: 2 },
         { month: 'Feb', batches: 5 }
@@ -57,15 +55,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (user.role === 'STUDENT') {
-      const progress = await pool.request()
-        .input('UserID', user.userId)
-        .query(`
+      const progress = await pool.query(`
           SELECT FORMAT(EnrolledAt, 'MMM') as month, COUNT(*) as courses
           FROM Enrollments
-          WHERE StudentID = @UserID
+          WHERE StudentID = $1
           GROUP BY FORMAT(EnrolledAt, 'MMM'), MONTH(EnrolledAt)
           ORDER BY MONTH(EnrolledAt)
-        `);
+        `, [user.userId]);
       data.learningProgress = progress.recordset.length ? progress.recordset : [
         { month: 'Jan', courses: 1 },
         { month: 'Feb', courses: 2 }

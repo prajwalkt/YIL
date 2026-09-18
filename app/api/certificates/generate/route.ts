@@ -14,19 +14,19 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
     
     // Validate completion criteria
-    const enrollRes = await pool.request().input('EnrollmentID', enrollmentId).query(`
+    const enrollRes = await pool.query(`
       SELECT e.*, u.FirstName, u.LastName, u.Email, c.Title as CourseName, c.Mode
       FROM Enrollments e
       JOIN LMS_Users u ON e.StudentID = u.UserID
       JOIN LMS_Courses c ON e.CourseID = c.CourseID
-      WHERE e.EnrollmentID = @EnrollmentID
-    `);
+      WHERE e.EnrollmentID = $1
+    `, [enrollmentId]);
     
     if (enrollRes.recordset.length === 0) return NextResponse.json({ success: false, message: 'Enrollment not found' }, { status: 404 });
     const enrollment = enrollRes.recordset[0];
     
     // Check if certificate already exists
-    const certCheck = await pool.request().input('EnrollmentID', enrollmentId).query(`SELECT 1 FROM Certificates WHERE EnrollmentID = @EnrollmentID`);
+    const certCheck = await pool.query(`SELECT 1 FROM Certificates WHERE EnrollmentID = $1`, [enrollmentId]);
     if (certCheck.recordset.length > 0) return NextResponse.json({ success: false, message: 'Certificate already generated' }, { status: 400 });
     
     // Check if status is COMPLETED
@@ -39,21 +39,10 @@ export async function POST(request: NextRequest) {
     const issueDate = new Date().toISOString().split('T')[0];
     const pdfPath = `/uploads/certificates/${certNo}.pdf`; // Mock path, in real scenario generate PDF
     
-    await pool.request()
-      .input('CertificateNo', certNo)
-      .input('StudentID', enrollment.StudentID)
-      .input('EnrollmentID', enrollmentId)
-      .input('CourseID', enrollment.CourseID)
-      .input('ParticipantName', `${enrollment.FirstName} ${enrollment.LastName}`)
-      .input('CourseName', enrollment.CourseName)
-      .input('TrainerName', 'YTS Master Trainer') // Fetch from Calendar if available
-      .input('IssueDate', issueDate)
-      .input('PDFPath', pdfPath)
-      .input('IssuedBy', user!.userId)
-      .query(`
+    await pool.query(`
         INSERT INTO Certificates (CertificateNo, StudentID, EnrollmentID, CourseID, ParticipantName, CourseName, TrainerName, IssueDate, PDFPath, IssuedBy)
-        VALUES (@CertificateNo, @StudentID, @EnrollmentID, @CourseID, @ParticipantName, @CourseName, @TrainerName, @IssueDate, @PDFPath, @IssuedBy)
-      `);
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [certNo, enrollment.StudentID, enrollmentId, enrollment.CourseID, `${enrollment.FirstName} ${enrollment.LastName}`, enrollment.CourseName, 'YTS Master Trainer', issueDate, pdfPath, user!.userId]);
 
     await auditLog(user!.userId, user!.email, 'CERTIFICATE_GENERATED', 'CERTIFICATES', `Generated cert ${certNo} for Enrollment ${enrollmentId}`, '127.0.0.1');
 

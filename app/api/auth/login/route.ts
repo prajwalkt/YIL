@@ -76,12 +76,10 @@ export async function POST(request: NextRequest) {
       return res;
     }
 
-    const result = await pool.request()
-      .input('Email', email)
-      .query(`
+    const result = await pool.query(`
         SELECT UserID, Email, PasswordHash, Role, FirstName, LastName, IsActive, IsApproved, MustChangePassword
-        FROM LMS_Users WHERE Email = @Email
-      `);
+        FROM LMS_Users WHERE Email = $1
+      `, [email]);
 
     if (result.recordset.length === 0) {
       await recordLoginAttempt(email, false, ip, userAgent);
@@ -134,15 +132,10 @@ export async function POST(request: NextRequest) {
 
     try {
       // 1. Insert into LMS_Sessions
-      await pool.request()
-        .input('SessionID', sessionId)
-        .input('UserID', user.UserID)
-        .input('IPAddress', ip)
-        .input('UserAgent', userAgent.substring(0, 200))
-        .query(`
+      await pool.query(`
           INSERT INTO LMS_Sessions (SessionID, UserID, IPAddress, UserAgent, ExpiresAt)
-          VALUES (@SessionID, @UserID, @IPAddress, @UserAgent, DATEADD(hour, 8, GETDATE()))
-        `);
+          VALUES ($1, $2, $3, $4, DATEADD(hour, 8, CURRENT_TIMESTAMP))
+        `, [sessionId, user.UserID, ip, userAgent.substring(0, 200)]);
     } catch (err) {
       console.warn('Session tracking error:', err);
     }

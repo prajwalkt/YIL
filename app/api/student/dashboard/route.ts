@@ -74,23 +74,23 @@ export async function GET(request: NextRequest) {
     });
 
     // Get certificates
-    const certificatesResult = await pool.request().input('StudentID', user!.userId).query(`
+    const certificatesResult = await pool.query(`
       SELECT CertificateID, CertificateNo, CourseName, TrainerName, IssueDate, ValidUntil 
       FROM Certificates 
-      WHERE StudentID = @StudentID
+      WHERE StudentID = $1
       ORDER BY IssueDate DESC
-    `);
+    `, [user!.userId]);
 
     // Get invoices tied to this student
-    const invoicesResult = await pool.request().input('StudentID', user!.userId).query(`
+    const invoicesResult = await pool.query(`
       SELECT InvoiceNo, CourseName, Amount, Currency, Status, IssuedDate, DueDate 
       FROM Invoices 
-      WHERE StudentName = (SELECT FirstName + ' ' + LastName FROM LMS_Users WHERE UserID = @StudentID)
+      WHERE StudentName = (SELECT FirstName + ' ' + LastName FROM LMS_Users WHERE UserID = $1)
       ORDER BY IssuedDate DESC
-    `);
+    `, [user!.userId]);
 
     // Available courses
-    const catalogResult = await pool.request().query(`
+    const catalogResult = await pool.query(`
       SELECT CourseID, Title, Code, Description, Mode, Duration, FeeUSD, FeeINR, Category 
       FROM LMS_Courses 
       WHERE Status = 'ACTIVE'

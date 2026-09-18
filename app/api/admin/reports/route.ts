@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const month = searchParams.get('month');
 
     // ── Stats ──
-    const stats = await pool.request().query(`
+    const stats = await pool.query(`
       SELECT
         (SELECT COUNT(*) FROM LMS_Users WHERE Role='STUDENT' AND IsActive=1) as TotalStudents,
         (SELECT COUNT(*) FROM LMS_Users WHERE Role='AFFILIATE' AND IsActive=1) as TotalAffiliates,
@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
         (SELECT COUNT(*) FROM LMS_Courses WHERE Status='ACTIVE') as ActiveCourses,
         (SELECT COUNT(*) FROM Registrations) as TotalRegistrations,
         (SELECT COUNT(*) FROM Certificates) as CertificatesIssued,
-        (SELECT COUNT(*) FROM TrainingCalendar WHERE StartDate >= CAST(GETDATE() AS DATE) AND StartDate <= DATEADD(MONTH,3,CAST(GETDATE() AS DATE))) as UpcomingTrainings,
+        (SELECT COUNT(*) FROM TrainingCalendar WHERE StartDate >= CAST(CURRENT_TIMESTAMP AS DATE) AND StartDate <= DATEADD(MONTH,3,CAST(CURRENT_TIMESTAMP AS DATE))) as UpcomingTrainings,
         (SELECT COUNT(*) FROM TrainingEnquiries WHERE Status='OPEN') as OpenEnquiries,
         (SELECT COUNT(*) FROM PaymentTracking WHERE Status='PENDING') as PendingPayments,
-        (SELECT ISNULL(SUM(Amount),0) FROM Invoices WHERE Status='PAID' AND MONTH(IssuedDate)=MONTH(GETDATE()) AND YEAR(IssuedDate)=YEAR(GETDATE())) as MonthlyRevenue,
-        (SELECT COUNT(*) FROM TrainingCalendar WHERE StartDate <= CAST(GETDATE() AS DATE) AND EndDate >= CAST(GETDATE() AS DATE)) as RunningBatches,
-        (SELECT COUNT(*) FROM TrainingCalendar WHERE EndDate < CAST(GETDATE() AS DATE)) as CompletedBatches,
+        (SELECT COALESCE(SUM(Amount),0) FROM Invoices WHERE Status='PAID' AND MONTH(IssuedDate)=MONTH(CURRENT_TIMESTAMP) AND YEAR(IssuedDate)=YEAR(CURRENT_TIMESTAMP)) as MonthlyRevenue,
+        (SELECT COUNT(*) FROM TrainingCalendar WHERE StartDate <= CAST(CURRENT_TIMESTAMP AS DATE) AND EndDate >= CAST(CURRENT_TIMESTAMP AS DATE)) as RunningBatches,
+        (SELECT COUNT(*) FROM TrainingCalendar WHERE EndDate < CAST(CURRENT_TIMESTAMP AS DATE)) as CompletedBatches,
         (SELECT COUNT(*) FROM LMS_Users WHERE Role='TRAINER' AND IsActive=1) as TotalTrainers
     `);
 
@@ -79,21 +79,21 @@ export async function GET(request: NextRequest) {
     const recentRegs = await req2.query(regQuery);
 
     // ── Monthly trend data ──
-    const monthlyData = await pool.request().query(`
+    const monthlyData = await pool.query(`
       SELECT 
         FORMAT(StartDate, 'MMM yyyy') as Month,
         COUNT(*) as Count,
         TrainingType
       FROM TrainingCalendar
-      WHERE StartDate >= DATEADD(MONTH, -6, GETDATE())
+      WHERE StartDate >= DATEADD(MONTH, -6, CURRENT_TIMESTAMP)
       GROUP BY FORMAT(StartDate, 'MMM yyyy'), TrainingType, YEAR(StartDate), MONTH(StartDate)
       ORDER BY YEAR(StartDate), MONTH(StartDate)
     `);
 
     // ── Recent audit logs ──
-    const auditLogs = await pool.request().query(`
-      SELECT TOP 20 * FROM AuditLog ORDER BY CreatedAt DESC
-    `);
+    const auditLogs = await pool.query(`
+      SELECT * FROM AuditLog ORDER BY CreatedAt DESC
+     LIMIT 20`);
 
     return NextResponse.json({
       success: true,

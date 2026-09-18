@@ -8,29 +8,26 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const req = pool.request();
-    req.input('TrainerUserID', user!.userId);
-    
+    const values = [user!.userId];
     const { searchParams } = new URL(request.url);
     const calendarId = searchParams.get('calendarId');
-
     let query = `
       SELECT e.*, u.FirstName, u.LastName, u.Email, u.Organization, u.Phone,
              tc.Title as CalendarTitle, tc.StartDate, tc.EndDate
       FROM Enrollments e
       JOIN LMS_Users u ON e.StudentID = u.UserID
       JOIN TrainingCalendar tc ON e.CalendarID = tc.CalendarID
-      WHERE tc.TrainerID = @TrainerUserID
+      WHERE tc.TrainerID = $1
     `;
 
     if (calendarId) {
-      query += ` AND e.CalendarID = @CalendarID`;
-      req.input('CalendarID', Number(calendarId));
+      values.push(Number(calendarId));
+      query += ` AND e.CalendarID = $${values.length}`;
     }
 
     query += ` ORDER BY tc.StartDate DESC, u.FirstName ASC`;
 
-    const result = await req.query(query);
+    const result = await pool.query(query, values);
 
     return NextResponse.json({ success: true, participants: result.recordset });
   } catch (e: any) {

@@ -147,28 +147,19 @@ export async function recordLoginAttempt(
 ): Promise<void> {
   try {
     const pool = await getConnection();
-    await pool.request()
-      .input('Email', email)
-      .input('Success', success ? 1 : 0)
-      .input('IPAddress', ipAddress.substring(0, 50))
-      .input('UserAgent', userAgent.substring(0, 500))
-      .query(`INSERT INTO LoginAttempts (Email, Success, IPAddress, UserAgent) VALUES (@Email, @Success, @IPAddress, @UserAgent)`);
+    await pool.query(`INSERT INTO LoginAttempts (Email, Success, IPAddress, UserAgent) VALUES ($1, $2, $3, $4)`, [email, success ? 1 : 0, ipAddress.substring(0, 50), userAgent.substring(0, 500)]);
     
     if (!success) {
       // Increment failed attempt counter
-      await pool.request()
-        .input('Email', email)
-        .query(`
+      await pool.query(`
           UPDATE LMS_Users 
           SET FailedLoginAttempts = FailedLoginAttempts + 1,
-              LockoutUntil = CASE WHEN FailedLoginAttempts >= 4 THEN DATEADD(MINUTE, 30, GETUTCDATE()) ELSE LockoutUntil END
-          WHERE Email = @Email
-        `);
+              LockoutUntil = CASE WHEN FailedLoginAttempts >= 4 THEN DATEADD(MINUTE, 30, (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')) ELSE LockoutUntil END
+          WHERE Email = $1
+        `, [email]);
     } else {
       // Reset on success
-      await pool.request()
-        .input('Email', email)
-        .query(`UPDATE LMS_Users SET FailedLoginAttempts = 0, LockoutUntil = NULL, LastLogin = GETUTCDATE() WHERE Email = @Email`);
+      await pool.query(`UPDATE LMS_Users SET FailedLoginAttempts = 0, LockoutUntil = NULL, LastLogin = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') WHERE Email = $1`, [email]);
     }
   } catch {}
 }
@@ -176,16 +167,14 @@ export async function recordLoginAttempt(
 export async function isAccountLocked(email: string): Promise<boolean> {
   try {
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('Email', email)
-      .query(`
+    const result = await pool.query(`
         SELECT 
           LockoutUntil, 
           FailedLoginAttempts,
-          CASE WHEN LockoutUntil IS NOT NULL AND LockoutUntil > GETUTCDATE() THEN 1 ELSE 0 END as IsTimeLocked
+          CASE WHEN LockoutUntil IS NOT NULL AND LockoutUntil > (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') THEN 1 ELSE 0 END as IsTimeLocked
         FROM LMS_Users 
-        WHERE Email = @Email
-      `);
+        WHERE Email = $1
+      `, [email]);
     
     if (result.recordset.length === 0) return false;
     const { IsTimeLocked, FailedLoginAttempts } = result.recordset[0];
@@ -212,18 +201,10 @@ export async function auditLog(
 ): Promise<void> {
   try {
     const pool = await getConnection();
-    await pool.request()
-      .input('UserID', userId)
-      .input('UserEmail', userEmail.substring(0, 255))
-      .input('Action', action.substring(0, 200))
-      .input('Module', module.substring(0, 100))
-      .input('Details', details.substring(0, 2000))
-      .input('IPAddress', ipAddress.substring(0, 50))
-      .input('Status', status)
-      .query(`
+    await pool.query(`
         INSERT INTO AuditLog (UserID, UserEmail, Action, Module, Details, IPAddress, Status)
-        VALUES (@UserID, @UserEmail, @Action, @Module, @Details, @IPAddress, @Status)
-      `);
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [userId, userEmail.substring(0, 255), action.substring(0, 200), module.substring(0, 100), details.substring(0, 2000), ipAddress.substring(0, 50), status]);
   } catch {}
 }
 

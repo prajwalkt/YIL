@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT u.UserID, u.FirstName, u.LastName, u.Email, u.Phone, u.IsActive,
              tp.ProfileID, tp.EmployeeID, tp.Department, tp.Expertise, tp.ExperienceYears,
              tp.TrainerRating, tp.Certifications, tp.Biography, tp.IsApproved
@@ -36,24 +36,12 @@ export async function POST(request: NextRequest) {
 
     const pool = await getConnection();
     // Upsert trainer profile
-    const existing = await pool.request().input('UserID', userId).query(`SELECT ProfileID FROM TrainerProfiles WHERE UserID = @UserID`);
+    const existing = await pool.query(`SELECT ProfileID FROM TrainerProfiles WHERE UserID = $1`, [userId]);
 
     if (existing.recordset.length > 0) {
-      await pool.request()
-        .input('UserID', userId).input('EmployeeID', employeeId || '')
-        .input('Department', department || '').input('Expertise', expertise || '')
-        .input('ExperienceYears', Number(experienceYears) || 0).input('Certifications', certifications || '')
-        .input('Biography', biography || '').input('LinkedInURL', linkedInURL || '')
-        .input('IsApproved', isApproved ? 1 : 0)
-        .query(`UPDATE TrainerProfiles SET EmployeeID=@EmployeeID,Department=@Department,Expertise=@Expertise,ExperienceYears=@ExperienceYears,Certifications=@Certifications,Biography=@Biography,LinkedInURL=@LinkedInURL,IsApproved=@IsApproved,UpdatedAt=GETDATE() WHERE UserID=@UserID`);
+      await pool.query(`UPDATE TrainerProfiles SET EmployeeID=$1,Department=$2,Expertise=$3,ExperienceYears=$4,Certifications=$5,Biography=$6,LinkedInURL=$7,IsApproved=$8,UpdatedAt=CURRENT_TIMESTAMP WHERE UserID=$9`, [employeeId || '', department || '', expertise || '', Number(experienceYears) || 0, certifications || '', biography || '', linkedInURL || '', isApproved ? 1 : 0, userId]);
     } else {
-      await pool.request()
-        .input('UserID', userId).input('EmployeeID', employeeId || '')
-        .input('Department', department || '').input('Expertise', expertise || '')
-        .input('ExperienceYears', Number(experienceYears) || 0).input('Certifications', certifications || '')
-        .input('Biography', biography || '').input('LinkedInURL', linkedInURL || '')
-        .input('IsApproved', isApproved ? 1 : 0)
-        .query(`INSERT INTO TrainerProfiles (UserID,EmployeeID,Department,Expertise,ExperienceYears,Certifications,Biography,LinkedInURL,IsApproved) VALUES (@UserID,@EmployeeID,@Department,@Expertise,@ExperienceYears,@Certifications,@Biography,@LinkedInURL,@IsApproved)`);
+      await pool.query(`INSERT INTO TrainerProfiles (UserID,EmployeeID,Department,Expertise,ExperienceYears,Certifications,Biography,LinkedInURL,IsApproved) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [userId, employeeId || '', department || '', expertise || '', Number(experienceYears) || 0, certifications || '', biography || '', linkedInURL || '', isApproved ? 1 : 0]);
     }
 
     await auditLog(user!.userId, user!.email, 'TRAINER_PROFILE_SAVED', 'TRAINERS', `Saved profile for user ${userId}`, ip);

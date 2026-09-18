@@ -23,7 +23,7 @@ export default function DynamicCalendar() {
   useEffect(() => {
     const fetchCalendar = async () => {
       try {
-        const res = await fetch('/api/calendar', { cache: 'no-store' });
+        const res = await fetch('/api/calendar', { cache: 'no-store', credentials: 'include' });
         const data = await res.json();
         if (data.success) {
           setBatches(data.calendar);

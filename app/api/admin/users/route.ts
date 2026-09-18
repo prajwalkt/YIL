@@ -59,15 +59,11 @@ export async function POST(request: NextRequest) {
     if (!pwCheck.valid && body.password) return NextResponse.json({ success: false, message: pwCheck.message }, { status: 400 });
 
     const pool = await getConnection();
-    const existing = await pool.request().input('Email', email).query(`SELECT UserID FROM LMS_Users WHERE Email = @Email`);
+    const existing = await pool.query(`SELECT UserID FROM LMS_Users WHERE Email = $1`, [email]);
     if (existing.recordset.length > 0) return NextResponse.json({ success: false, message: 'Email already exists' }, { status: 409 });
 
     const passwordHash = await hashPassword(password);
-    await pool.request()
-      .input('Email', email).input('PasswordHash', passwordHash).input('Role', role)
-      .input('FirstName', firstName).input('LastName', lastName).input('Phone', phone)
-      .input('Organization', organization).input('Country', country)
-      .query(`INSERT INTO LMS_Users (Email,PasswordHash,Role,FirstName,LastName,Phone,Organization,Country,IsActive,IsApproved,MustChangePassword) VALUES (@Email,@PasswordHash,@Role,@FirstName,@LastName,@Phone,@Organization,@Country,1,1,1)`);
+    await pool.query(`INSERT INTO LMS_Users (Email,PasswordHash,Role,FirstName,LastName,Phone,Organization,Country,IsActive,IsApproved,MustChangePassword) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,1,1,1)`, [email, passwordHash, role, firstName, lastName, phone, organization, country]);
 
     await auditLog(user!.userId, user!.email, 'USER_CREATED', 'USERS', `Created ${role}: ${email}`, ip);
     return NextResponse.json({ success: true, message: 'User created successfully' });
@@ -87,12 +83,7 @@ export async function PUT(request: NextRequest) {
     if (!userId) return NextResponse.json({ success: false, message: 'User ID required' }, { status: 400 });
 
     const pool = await getConnection();
-    await pool.request()
-      .input('UserID', userId).input('Role', role).input('IsActive', isActive ? 1 : 0)
-      .input('IsApproved', isApproved ? 1 : 0).input('FirstName', firstName || '')
-      .input('LastName', lastName || '').input('Phone', phone || '')
-      .input('Organization', organization || '').input('Country', country || '')
-      .query(`UPDATE LMS_Users SET Role=@Role,IsActive=@IsActive,IsApproved=@IsApproved,FirstName=@FirstName,LastName=@LastName,Phone=@Phone,Organization=@Organization,Country=@Country WHERE UserID=@UserID`);
+    await pool.query(`UPDATE LMS_Users SET Role=$1,IsActive=$2,IsApproved=$3,FirstName=$4,LastName=$5,Phone=$6,Organization=$7,Country=$8 WHERE UserID=$9`, [role, isActive ? 1 : 0, isApproved ? 1 : 0, firstName || '', lastName || '', phone || '', organization || '', country || '', userId]);
 
     await auditLog(user!.userId, user!.email, 'USER_UPDATED', 'USERS', `Updated user ${userId}`, ip);
     return NextResponse.json({ success: true, message: 'User updated' });
@@ -113,7 +104,7 @@ export async function DELETE(request: NextRequest) {
     if (Number(userId) === user!.userId) return NextResponse.json({ success: false, message: 'Cannot delete your own account' }, { status: 400 });
 
     const pool = await getConnection();
-    await pool.request().input('UserID', Number(userId)).query(`UPDATE LMS_Users SET IsActive=0 WHERE UserID=@UserID`);
+    await pool.query(`UPDATE LMS_Users SET IsActive=0 WHERE UserID=$1`, [Number(userId)]);
     await auditLog(user!.userId, user!.email, 'USER_DELETED', 'USERS', `Soft deleted user ${userId}`, ip);
     return NextResponse.json({ success: true, message: 'User deactivated' });
   } catch (e: any) {

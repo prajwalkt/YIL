@@ -7,11 +7,11 @@ import path from 'path';
 import { validateUploadedFile, generateSafeFilename, ALLOWED_MIME_TYPES, verifyMimeByMagic } from "../../../library/fileUpload";
 
 async function ensureTable(pool: any) {
-  const result = await pool.request().query(`
+  const result = await pool.query(`
     SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'InteractiveManuals'
   `);
   if (result.recordset.length === 0) {
-    await pool.request().query(`
+    await pool.query(`
       CREATE TABLE InteractiveManuals (
           ManualID INT IDENTITY(1,1) PRIMARY KEY,
           CourseID INT NULL,
@@ -19,7 +19,7 @@ async function ensureTable(pool: any) {
           Description NVARCHAR(500),
           FilePath NVARCHAR(500),
           IsActive BIT DEFAULT 1,
-          CreatedAt DATETIME DEFAULT GETDATE()
+          CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
   }
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const pool = await getConnection();
     await ensureTable(pool);
 
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT m.*, c.Title as CourseName 
       FROM InteractiveManuals m
       LEFT JOIN LMS_Courses c ON m.CourseID = c.CourseID
@@ -97,15 +97,10 @@ export async function POST(request: NextRequest) {
     await fs.writeFile(destPath, buffer);
     const dbPath = `/manuals_repo/${safeFilename}`;
 
-    await pool.request()
-      .input("CourseID", courseId ? Number(courseId) : null)
-      .input("Title", title)
-      .input("Description", description)
-      .input("FilePath", dbPath)
-      .query(`
+    await pool.query(`
         INSERT INTO InteractiveManuals (CourseID, Title, Description, FilePath)
-        VALUES (@CourseID, @Title, @Description, @FilePath)
-      `);
+        VALUES ($1, $2, $3, $4)
+      `, [courseId ? Number(courseId) : null, title, description, dbPath]);
 
     return NextResponse.json({ success: true, message: "Manual uploaded successfully" });
   } catch (error: any) {

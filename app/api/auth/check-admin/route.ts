@@ -4,9 +4,7 @@ import { getConnection } from '../../../library/db';
 export async function GET() {
     try {
         const pool = await getConnection();
-        const result = await pool.request()
-            .input('Email', 'admin@yts.yokogawa.com')
-            .query('SELECT UserID, Email, PasswordHash, Role, IsActive, IsApproved, LockoutUntil, FailedLoginAttempts FROM LMS_Users WHERE Email = @Email');
+        const result = await pool.query(`SELECT UserID, Email, PasswordHash, Role, IsActive, IsApproved, LockoutUntil, FailedLoginAttempts FROM LMS_Users WHERE Email = $1`, ['admin@yts.yokogawa.com']);
             
         if (result.recordset.length === 0) {
             return NextResponse.json({ success: true, message: 'Admin not found' });

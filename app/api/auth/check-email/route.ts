@@ -19,9 +19,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('Email', email)
-      .query(`SELECT 1 FROM LMS_Users WHERE Email = @Email`);
+    const result = await pool.query(`SELECT 1 FROM LMS_Users WHERE Email = $1`, [email]);
 
     return NextResponse.json({ exists: result.recordset.length > 0 });
   } catch {

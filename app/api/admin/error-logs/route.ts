@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT e.*, u.Email as UserEmail 
       FROM ErrorLogs e
       LEFT JOIN LMS_Users u ON e.UserID = u.UserID

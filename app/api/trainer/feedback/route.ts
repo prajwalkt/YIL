@@ -18,13 +18,13 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
     
     // Get enrollment details
-    const enrRes = await pool.request().input('EnrollmentID', Number(enrollmentId)).query(`
+    const enrRes = await pool.query(`
       SELECT e.*, u.FirstName, u.LastName, c.Title as CourseTitle
       FROM Enrollments e
       JOIN LMS_Users u ON e.StudentID = u.UserID
       JOIN LMS_Courses c ON e.CourseID = c.CourseID
-      WHERE e.EnrollmentID = @EnrollmentID
-    `);
+      WHERE e.EnrollmentID = $1
+    `, [Number(enrollmentId)]);
     
     if (enrRes.recordset.length === 0) return NextResponse.json({ success: false, message: 'Enrollment not found' }, { status: 404 });
     const enr = enrRes.recordset[0];
@@ -38,31 +38,16 @@ export async function POST(request: NextRequest) {
     }
     const overallRating = count > 0 ? (totalRating / count) : 0;
 
-    // Insert into Feedback
-    const req = pool.request();
-    req.input('RegistrationID', enr.RegistrationID);
-    req.input('StudentID', enr.StudentID);
-    req.input('TrainerID', user!.userId);
-    req.input('CourseID', enr.CourseID);
-    req.input('CalendarID', enr.CalendarID);
-    req.input('OverallRating', overallRating);
-    req.input('Comments', comments || '');
-    req.input('Status', status || 'COMPLETED');
-
-    const feedRes = await req.query(`
+    const feedRes = await pool.query(`
       INSERT INTO Feedback (RegistrationID, StudentID, TrainerID, CourseID, CalendarID, OverallRating, Comments, Status)
-      OUTPUT INSERTED.FeedbackID
-      VALUES (@RegistrationID, @StudentID, @TrainerID, @CourseID, @CalendarID, @OverallRating, @Comments, @Status)
-    `);
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING FeedbackID
+    `, [enr.RegistrationID, enr.StudentID, user!.userId, enr.CourseID, enr.CalendarID, overallRating, comments || '', status || 'COMPLETED']);
     const feedbackId = feedRes.recordset[0].FeedbackID;
 
     // Insert Responses
     for (const question in ratings) {
-      await pool.request()
-        .input('FeedbackID', feedbackId)
-        .input('Question', question)
-        .input('Rating', Number(ratings[question]))
-        .query(`INSERT INTO FeedbackResponses (FeedbackID, Question, Rating) VALUES (@FeedbackID, @Question, @Rating)`);
+      await pool.query(`INSERT INTO FeedbackResponses (FeedbackID, Question, Rating) VALUES ($1, $2, $3)`, [feedbackId, question, Number(ratings[question])]);
     }
 
     // Generate PDF
@@ -105,9 +90,9 @@ export async function POST(request: NextRequest) {
     const pdfUrl = `/uploads/reports/${fileName}`;
 
     // Update PDF path in DB
-    await pool.request().input('PDFPath', pdfUrl).input('FeedbackID', feedbackId).query(`
-      UPDATE Feedback SET PDFPath = @PDFPath WHERE FeedbackID = @FeedbackID
-    `);
+    await pool.query(`
+      UPDATE Feedback SET PDFPath = $1 WHERE FeedbackID = $2
+    `, [pdfUrl, feedbackId]);
 
     return NextResponse.json({ success: true, message: 'Feedback saved', pdfUrl });
   } catch (e: any) {

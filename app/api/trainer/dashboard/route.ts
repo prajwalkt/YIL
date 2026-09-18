@@ -8,52 +8,51 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const req = pool.request();
-    req.input('TrainerUserID', user!.userId);
+    const trainerUserId = user!.userId;
 
     // Get trainer profile details
     let profile = null;
     try {
-      const profileResult = await req.query(`SELECT * FROM TrainerProfiles WHERE UserID = @TrainerUserID`);
+      const profileResult = await pool.query(`SELECT * FROM TrainerProfiles WHERE UserID = $1`, [trainerUserId]);
       profile = profileResult.recordset[0] || null;
     } catch (e) { console.error("Error fetching trainer profile", e); }
     
     // Get upcoming schedule
     let upcomingSchedule: any[] = [];
     try {
-      const scheduleResult = await req.query(`
+      const scheduleResult = await pool.query(`
         SELECT tc.*, c.Title as CourseTitle 
         FROM TrainingCalendar tc
         LEFT JOIN LMS_Courses c ON tc.CourseID = c.CourseID
-        WHERE tc.TrainerID = @TrainerUserID AND tc.StartDate >= CAST(GETDATE() AS DATE)
+        WHERE tc.TrainerID = $1 AND tc.StartDate >= CURRENT_TIMESTAMP
         ORDER BY tc.StartDate ASC
-      `);
+      `, [trainerUserId]);
       upcomingSchedule = scheduleResult.recordset;
     } catch (e) { console.error("Error fetching upcoming schedule", e); }
 
     // Get past schedule
     let pastSchedule: any[] = [];
     try {
-      const pastResult = await req.query(`
+      const pastResult = await pool.query(`
         SELECT tc.*, c.Title as CourseTitle 
         FROM TrainingCalendar tc
         LEFT JOIN LMS_Courses c ON tc.CourseID = c.CourseID
-        WHERE tc.TrainerID = @TrainerUserID AND tc.StartDate < CAST(GETDATE() AS DATE)
+        WHERE tc.TrainerID = $1 AND tc.StartDate < CURRENT_TIMESTAMP
         ORDER BY tc.StartDate DESC
-      `);
+      `, [trainerUserId]);
       pastSchedule = pastResult.recordset;
     } catch (e) { console.error("Error fetching past schedule", e); }
 
     // Get feedback summary
     let feedbackSummary = { AvgTrainerScore: 0, TotalFeedback: 0 };
     try {
-      const feedbackResult = await req.query(`
+      const feedbackResult = await pool.query(`
         SELECT 
           AVG(CAST(TrainerScore AS FLOAT)) as AvgTrainerScore,
           COUNT(*) as TotalFeedback
         FROM Feedback 
-        WHERE TrainerID = @TrainerUserID
-      `);
+        WHERE TrainerID = $1
+      `, [trainerUserId]);
       if (feedbackResult.recordset.length > 0) {
         feedbackSummary = feedbackResult.recordset[0];
       }
@@ -62,12 +61,12 @@ export async function GET(request: NextRequest) {
     // Get basic stats
     let stats = { TotalStudents: 0, TodaySessions: 0, PendingAssessments: 0 };
     try {
-      const statsResult = await req.query(`
+      const statsResult = await pool.query(`
         SELECT 
-          (SELECT COUNT(*) FROM Enrollments e JOIN TrainingCalendar tc ON e.CalendarID = tc.CalendarID WHERE tc.TrainerID = @TrainerUserID AND e.Status != 'DROPPED') as TotalStudents,
-          (SELECT COUNT(*) FROM TrainingCalendar WHERE TrainerID = @TrainerUserID AND CAST(StartDate AS DATE) <= CAST(GETDATE() AS DATE) AND CAST(EndDate AS DATE) >= CAST(GETDATE() AS DATE)) as TodaySessions,
-          (SELECT COUNT(*) FROM Enrollments e JOIN TrainingCalendar tc ON e.CalendarID = tc.CalendarID WHERE tc.TrainerID = @TrainerUserID AND e.Status = 'ENROLLED' AND CAST(tc.EndDate AS DATE) < CAST(GETDATE() AS DATE)) as PendingAssessments
-      `);
+          (SELECT COUNT(*) FROM Enrollments e JOIN TrainingCalendar tc ON e.CalendarID = tc.CalendarID WHERE tc.TrainerID = $1 AND e.Status != 'DROPPED') as TotalStudents,
+          (SELECT COUNT(*) FROM TrainingCalendar WHERE TrainerID = $2 AND CAST(StartDate AS DATE) <= CURRENT_DATE AND CAST(EndDate AS DATE) >= CURRENT_DATE) as TodaySessions,
+          (SELECT COUNT(*) FROM Enrollments e JOIN TrainingCalendar tc ON e.CalendarID = tc.CalendarID WHERE tc.TrainerID = $3 AND e.Status = 'ENROLLED' AND CAST(tc.EndDate AS DATE) < CURRENT_DATE) as PendingAssessments
+      `, [trainerUserId, trainerUserId, trainerUserId]);
       if (statsResult.recordset.length > 0) stats = statsResult.recordset[0];
     } catch (e) { console.error("Error fetching trainer stats", e); }
 

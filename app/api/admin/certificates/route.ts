@@ -53,27 +53,16 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
 
     // Check if certificate already exists for this student+course
-    const existing = await pool.request()
-      .input('StudentID', Number(studentId)).input('CourseID', Number(courseId))
-      .query(`SELECT CertificateID FROM Certificates WHERE StudentID=@StudentID AND CourseID=@CourseID`);
+    const existing = await pool.query(`SELECT CertificateID FROM Certificates WHERE StudentID=$1 AND CourseID=$2`, [Number(studentId), Number(courseId)]);
     
     if (existing.recordset.length > 0) {
       return NextResponse.json({ success: false, message: 'Certificate already exists for this student and course' }, { status: 409 });
     }
 
-    await pool.request()
-      .input('CertificateNo', certNo).input('StudentID', Number(studentId)).input('CourseID', Number(courseId))
-      .input('ParticipantName', participantName || '')
-      .input('CourseName', courseName || '')
-      .input('TrainerName', trainerName || '')
-      .input('IssueDate', issueDate).input('ValidUntil', validUntil || null)
-      .input('IssuedBy', user!.userId)
-      .query(`INSERT INTO Certificates (CertificateNo,StudentID,CourseID,ParticipantName,CourseName,TrainerName,IssueDate,ValidUntil,IssuedBy) VALUES (@CertificateNo,@StudentID,@CourseID,@ParticipantName,@CourseName,@TrainerName,@IssueDate,@ValidUntil,@IssuedBy)`);
+    await pool.query(`INSERT INTO Certificates (CertificateNo,StudentID,CourseID,ParticipantName,CourseName,TrainerName,IssueDate,ValidUntil,IssuedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [certNo, Number(studentId), Number(courseId), participantName || '', courseName || '', trainerName || '', issueDate, validUntil || null, user!.userId]);
 
     // Update enrollment status
-    await pool.request()
-      .input('StudentID', Number(studentId)).input('CourseID', Number(courseId))
-      .query(`UPDATE Enrollments SET Status='COMPLETED',ProgressPercent=100,CompletedAt=GETDATE() WHERE StudentID=@StudentID AND CourseID=@CourseID`);
+    await pool.query(`UPDATE Enrollments SET Status='COMPLETED',ProgressPercent=100,CompletedAt=CURRENT_TIMESTAMP WHERE StudentID=$1 AND CourseID=$2`, [Number(studentId), Number(courseId)]);
 
     await auditLog(user!.userId, user!.email, 'CERTIFICATE_ISSUED', 'CERTIFICATES', `Issued ${certNo} to student ${studentId}`, ip);
 
@@ -98,7 +87,7 @@ export async function DELETE(request: NextRequest) {
     if (!certId) return NextResponse.json({ success: false, message: 'Certificate ID required' }, { status: 400 });
 
     const pool = await getConnection();
-    await pool.request().input('CertificateID', Number(certId)).query(`DELETE FROM Certificates WHERE CertificateID=@CertificateID`);
+    await pool.query(`DELETE FROM Certificates WHERE CertificateID=$1`, [Number(certId)]);
     await auditLog(user!.userId, user!.email, 'CERTIFICATE_DELETED', 'CERTIFICATES', `Deleted certificate ${certId}`, ip);
     return NextResponse.json({ success: true, message: 'Certificate deleted' });
   } catch (e: any) {

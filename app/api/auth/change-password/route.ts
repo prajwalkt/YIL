@@ -35,9 +35,7 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
 
     // Fetch current hash
-    const result = await pool.request()
-      .input('UserID', user.userId)
-      .query(`SELECT PasswordHash, Role, FirstName, LastName, Email FROM LMS_Users WHERE UserID = @UserID`);
+    const result = await pool.query(`SELECT PasswordHash, Role, FirstName, LastName, Email FROM LMS_Users WHERE UserID = $1`, [user.userId]);
 
     if (result.recordset.length === 0) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
@@ -67,10 +65,7 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      await pool.request()
-        .input('Hash', newHash)
-        .input('UserID', user.userId)
-        .query(`UPDATE LMS_Users SET PasswordHash = @Hash, MustChangePassword = 0 WHERE UserID = @UserID`);
+      await pool.query(`UPDATE LMS_Users SET PasswordHash = $1, MustChangePassword = 0 WHERE UserID = $2`, [newHash, user.userId]);
     } catch (err) {
       console.error('Failed to update password hash in DB', err);
       throw err; // Let the outer catch handle it

@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const result = await pool.request().query('SELECT SettingKey, SettingValue, Description FROM SystemSettings');
+    const result = await pool.query(`SELECT SettingKey, SettingValue, Description FROM SystemSettings`);
     return NextResponse.json({ success: true, settings: result.recordset });
   } catch (e: any) {
     return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
@@ -33,14 +33,11 @@ export async function PUT(request: NextRequest) {
 
     try {
       for (const key of Object.keys(settings)) {
-        await transaction.request()
-          .input('Key', key)
-          .input('Val', String(settings[key]))
-          .query(`
+        await transaction.query(`
             UPDATE SystemSettings 
-            SET SettingValue = @Val 
-            WHERE SettingKey = @Key
-          `);
+            SET SettingValue = $1 
+            WHERE SettingKey = $2
+          `, [String(settings[key]), key]);
       }
       await transaction.commit();
       await auditLog(user!.userId, user!.email, 'SETTINGS_UPDATED', 'ADMIN', `Updated ${Object.keys(settings).length} settings`, ip);

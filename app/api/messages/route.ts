@@ -50,15 +50,10 @@ export async function POST(request: NextRequest) {
     }
 
     const pool = await getConnection();
-    await pool.request()
-      .input('SenderID', user.userId)
-      .input('ReceiverID', receiverId)
-      .input('Subject', subject)
-      .input('Body', body)
-      .query(`
+    await pool.query(`
         INSERT INTO Messages (SenderID, ReceiverID, Subject, Body)
-        VALUES (@SenderID, @ReceiverID, @Subject, @Body)
-      `);
+        VALUES ($1, $2, $3, $4)
+      `, [user.userId, receiverId, subject, body]);
 
     return NextResponse.json({ success: true, message: 'Message sent successfully' });
   } catch (e: any) {
@@ -75,14 +70,11 @@ export async function PATCH(request: NextRequest) {
     if (!messageId) return NextResponse.json({ success: false, message: 'Missing messageId' }, { status: 400 });
 
     const pool = await getConnection();
-    await pool.request()
-      .input('MessageID', messageId)
-      .input('UserID', user.userId)
-      .query(`
+    await pool.query(`
         UPDATE Messages 
-        SET IsRead = 1, ReadAt = GETDATE() 
-        WHERE MessageID = @MessageID AND ReceiverID = @UserID
-      `);
+        SET IsRead = 1, ReadAt = CURRENT_TIMESTAMP 
+        WHERE MessageID = $1 AND ReceiverID = $2
+      `, [messageId, user.userId]);
 
     return NextResponse.json({ success: true, message: 'Message marked as read' });
   } catch (e: any) {

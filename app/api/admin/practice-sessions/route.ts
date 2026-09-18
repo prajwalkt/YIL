@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT 
         s.SessionID, s.StartedAt, s.ExpiresAt, s.Status,
         u.Email as UserEmail,

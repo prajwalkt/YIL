@@ -46,15 +46,10 @@ export async function POST(request: NextRequest) {
     if (!title || !body) return NextResponse.json({ success: false, message: 'Title and body are required' }, { status: 400 });
 
     const pool = await getConnection();
-    await pool.request()
-      .input('Title', title)
-      .input('Body', body)
-      .input('TargetAudience', targetAudience || 'ALL')
-      .input('CreatedBy', user!.userId)
-      .query(`
+    await pool.query(`
         INSERT INTO Announcements (Title, Body, TargetAudience, CreatedBy) 
-        VALUES (@Title, @Body, @TargetAudience, @CreatedBy)
-      `);
+        VALUES ($1, $2, $3, $4)
+      `, [title, body, targetAudience || 'ALL', user!.userId]);
       
     await auditLog(user!.userId, user!.email, 'ANNOUNCEMENT_CREATED', 'COMMUNICATION', `Created announcement: ${title}`, ip);
     return NextResponse.json({ success: true, message: 'Announcement broadcasted successfully' });
@@ -73,7 +68,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const pool = await getConnection();
-    await pool.request().input('ID', id).query(`DELETE FROM Announcements WHERE AnnouncementID = @ID`);
+    await pool.query(`DELETE FROM Announcements WHERE AnnouncementID = $1`, [id]);
     return NextResponse.json({ success: true, message: 'Announcement deleted' });
   } catch (e: any) {
     return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });

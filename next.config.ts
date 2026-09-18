@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow local Puppeteer navigation
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
+
   // Remove X-Powered-By header to hide framework info
   poweredByHeader: false,
 
@@ -64,7 +67,6 @@ const nextConfig: NextConfig = {
               "base-uri 'self'",
               "form-action 'self'",
               "object-src 'none'",
-              "upgrade-insecure-requests",
             ].join('; '),
           },
           // Prevent XSS in older browsers
@@ -93,3 +95,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+// Force dev server restart

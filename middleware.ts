@@ -8,6 +8,7 @@ import { verifyTokenEdge } from './app/library/auth-edge';
 const PROTECTED_ROUTES: Record<string, string[]> = {
   // ── Admin sub-routes (Finance/TM need access to specific endpoints) ──
   '/api/admin/approvals':   ['ADMIN', 'FINANCE', 'TM'],
+  '/api/admin/date-approvals': ['ADMIN', 'FINANCE', 'TM'],
   '/api/admin/reports':     ['ADMIN', 'FINANCE', 'TM'],
   '/api/admin/calendar':    ['ADMIN', 'TM', 'TRAINER'],
   // ── Broad admin lock (all other /api/admin/* = ADMIN only) ──
@@ -49,8 +50,55 @@ export default async function middleware(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '127.0.0.1';
   const ipKey = ip.split(',')[0].trim();
 
+  const nonce = btoa(crypto.randomUUID());
+  
+  const isDev = process.env.NODE_ENV === 'development';
+  const scriptSrc = isDev 
+    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`
+    : `script-src 'self' 'unsafe-inline' 'unsafe-eval'`;
+  
+  const isLocalhost = request.nextUrl.hostname === 'localhost' || request.nextUrl.hostname === '127.0.0.1';
+
+  const cspDirectives = [
+    "default-src 'self'",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com",
+    "connect-src 'self'",
+    "frame-src 'self'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'"
+  ];
+
+  if (!isLocalhost) {
+    cspDirectives.push("upgrade-insecure-requests");
+  }
+
+  const cspHeader = cspDirectives.join('; ');
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', cspHeader);
+
+  // ── Force HTTPS in Production ──
+  if (process.env.NODE_ENV === 'production' && !isLocalhost) {
+    const proto = request.headers.get('x-forwarded-proto');
+    if (proto && proto !== 'https') {
+      const secureUrl = new URL(request.url);
+      secureUrl.protocol = 'https:';
+      return NextResponse.redirect(secureUrl, 301);
+    }
+  }
+
   // ── Apply Security Headers to all responses ──
-  const response = NextResponse.next();
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
   
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -58,23 +106,7 @@ export default async function middleware(request: NextRequest) {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
-  response.headers.set(
-    'Content-Security-Policy',
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com",
-      "connect-src 'self'",
-      "frame-src 'self'",
-      "frame-ancestors 'none'",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "upgrade-insecure-requests",
-    ].join('; ')
-  );
+  response.headers.set('Content-Security-Policy', cspHeader);
 
   // ── Rate limiting on API routes ──
   if (pathname.startsWith('/api/')) {
@@ -148,6 +180,16 @@ export default async function middleware(request: NextRequest) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(loginUrl);
+      }
+      
+      if (payload.mustChangePassword && !pathname.startsWith('/change-password') && !pathname.startsWith('/api/auth/')) {
+        if (pathname.startsWith('/api/')) {
+          return new NextResponse(
+            JSON.stringify({ success: false, message: 'Password change required', requiresPasswordChange: true }),
+            { status: 403, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        return NextResponse.redirect(new URL('/change-password', request.url));
       }
       
       if (!allowedRoles.includes(payload.role)) {

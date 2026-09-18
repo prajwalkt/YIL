@@ -28,40 +28,40 @@ export async function GET(request: NextRequest) {
     const pool = await getConnection();
 
     // Today's KPIs
-    const todayKpis = await pool.request().query(`
+    const todayKpis = await pool.query(`
       SELECT 
-        (SELECT COUNT(*) FROM Registrations WHERE CAST(CreatedAt AS DATE) = CAST(GETDATE() AS DATE)) as TodayRegistrations,
-        (SELECT SUM(Amount) FROM Invoices WHERE Status = 'PAID' AND CAST(PaidDate AS DATE) = CAST(GETDATE() AS DATE)) as TodayRevenue,
-        (SELECT COUNT(*) FROM Attendance WHERE SessionDate = CAST(GETDATE() AS DATE) AND Status = 'PRESENT') as TodayAttendance,
-        (SELECT COUNT(*) FROM Certificates WHERE IssueDate = CAST(GETDATE() AS DATE)) as TodayCertificates,
-        (SELECT COUNT(*) FROM TrainingCalendar WHERE CAST(GETDATE() AS DATE) BETWEEN StartDate AND EndDate AND Status != 'CANCELLED') as TodayRunningBatches,
+        (SELECT COUNT(*) FROM Registrations WHERE CAST(CreatedAt AS DATE) = CAST(CURRENT_TIMESTAMP AS DATE)) as TodayRegistrations,
+        (SELECT SUM(Amount) FROM Invoices WHERE Status = 'PAID' AND CAST(PaidDate AS DATE) = CAST(CURRENT_TIMESTAMP AS DATE)) as TodayRevenue,
+        (SELECT COUNT(*) FROM Attendance WHERE SessionDate = CAST(CURRENT_TIMESTAMP AS DATE) AND Status = 'PRESENT') as TodayAttendance,
+        (SELECT COUNT(*) FROM Certificates WHERE IssueDate = CAST(CURRENT_TIMESTAMP AS DATE)) as TodayCertificates,
+        (SELECT COUNT(*) FROM TrainingCalendar WHERE CAST(CURRENT_TIMESTAMP AS DATE) BETWEEN StartDate AND EndDate AND Status != 'CANCELLED') as TodayRunningBatches,
         (SELECT COUNT(*) FROM Invoices WHERE Status = 'PENDING') as PendingPayments,
         (SELECT COUNT(*) FROM Registrations WHERE Status IN ('PENDING', 'WAITING_APPROVAL')) as PendingApprovals
     `);
 
     // Registrations over time (last 6 months)
-    const trends = await pool.request().query(`
+    const trends = await pool.query(`
       SELECT 
         FORMAT(CreatedAt, 'MMM yyyy') as Month,
         COUNT(*) as Registrations
       FROM Registrations
-      WHERE CreatedAt >= DATEADD(month, -5, GETDATE())
+      WHERE CreatedAt >= DATEADD(month, -5, CURRENT_TIMESTAMP)
       ${countryFilter} ${courseFilter}
       GROUP BY FORMAT(CreatedAt, 'MMM yyyy'), YEAR(CreatedAt), MONTH(CreatedAt)
       ORDER BY YEAR(CreatedAt), MONTH(CreatedAt)
     `);
 
-    // Course Popularity (Pie Chart)
-    const popularity = await pool.request().query(`
-      SELECT TOP 5 Course as name, COUNT(*) as value
+    const popularity = await pool.query(`
+      SELECT Course as name, COUNT(*) as value
       FROM Registrations
       WHERE 1=1 ${countryFilter} ${dateFilter}
       GROUP BY Course
       ORDER BY value DESC
+      LIMIT 5
     `);
 
     // Revenue by Country (Bar Chart)
-    const revenue = await pool.request().query(`
+    const revenue = await pool.query(`
       SELECT r.Country as name, SUM(i.Amount) as value
       FROM Invoices i
       JOIN Registrations r ON i.RegistrationID = r.Id

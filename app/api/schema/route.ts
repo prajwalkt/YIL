@@ -8,7 +8,7 @@ export async function GET() {
   let html = '';
   for (const table of tables) {
     try {
-      const result = await pool.request().query(`
+      const result = await pool.query(`
         SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
         FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_NAME = '${table}'

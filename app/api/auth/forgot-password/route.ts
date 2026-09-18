@@ -34,9 +34,7 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
 
     // Check if user exists — always return success to prevent email enumeration
-    const result = await pool.request()
-      .input('Email', email)
-      .query(`SELECT UserID, FirstName, IsActive FROM LMS_Users WHERE Email = @Email`);
+    const result = await pool.query(`SELECT UserID, FirstName, IsActive FROM LMS_Users WHERE Email = $1`, [email]);
 
     // Always respond success to prevent user enumeration attacks
     const successResponse = NextResponse.json({
@@ -58,15 +56,10 @@ export async function POST(request: NextRequest) {
 
     // Store token hash in DB (not the raw token)
     try {
-      await pool.request()
-        .input('UserID', user.UserID)
-        .input('TokenHash', tokenHash)
-        .input('ExpiresAt', expiresAt)
-        .input('IPAddress', ip)
-        .query(`
+      await pool.query(`
           INSERT INTO PasswordResetTokens (UserID, TokenHash, CreatedAt, ExpiresAt, IsUsed, IPAddress)
-          VALUES (@UserID, @TokenHash, GETDATE(), @ExpiresAt, 0, @IPAddress)
-        `);
+          VALUES ($1, $2, CURRENT_TIMESTAMP, $3, 0, $4)
+        `, [user.UserID, tokenHash, expiresAt, ip]);
     } catch (err) {
       console.error('Error inserting into PasswordResetTokens:', err);
       return NextResponse.json({ success: false, message: 'An error occurred. Please try again.' }, { status: 500 });

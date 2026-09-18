@@ -9,16 +9,10 @@ export async function logError(
 ) {
   try {
     const pool = await getConnection();
-    await pool.request()
-      .input('Module', module.substring(0, 100))
-      .input('UserID', userId)
-      .input('ErrorMessage', errorMessage.substring(0, 4000))
-      .input('StackTrace', stackTrace.substring(0, 4000))
-      .input('Severity', severity)
-      .query(`
+    await pool.query(`
         INSERT INTO ErrorLogs (Module, UserID, ErrorMessage, StackTrace, Severity, Status, Timestamp)
-        VALUES (@Module, @UserID, @ErrorMessage, @StackTrace, @Severity, 'Open', GETDATE())
-      `);
+        VALUES ($1, $2, $3, $4, $5, 'Open', CURRENT_TIMESTAMP)
+      `, [module.substring(0, 100), userId, errorMessage.substring(0, 4000), stackTrace.substring(0, 4000), severity]);
   } catch (dbError) {
     console.error('Failed to write to ErrorLogs table:', dbError);
   }

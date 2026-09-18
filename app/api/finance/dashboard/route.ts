@@ -12,12 +12,12 @@ export async function GET(request: NextRequest) {
     const pool = await getConnection();
 
     // ── KPI Stats ──
-    const stats = await pool.request().query(`
+    const stats = await pool.query(`
       SELECT
-        (SELECT ISNULL(SUM(Amount), 0) FROM PaymentTracking WHERE Status = 'VERIFIED') as TotalRevenue,
-        (SELECT ISNULL(SUM(Amount), 0) FROM PaymentTracking WHERE Status = 'VERIFIED' AND MONTH(PaidAt) = MONTH(GETDATE()) AND YEAR(PaidAt) = YEAR(GETDATE())) as MonthlyRevenue,
+        (SELECT COALESCE(SUM(Amount), 0) FROM PaymentTracking WHERE Status = 'VERIFIED') as TotalRevenue,
+        (SELECT COALESCE(SUM(Amount), 0) FROM PaymentTracking WHERE Status = 'VERIFIED' AND MONTH(PaidAt) = MONTH(CURRENT_TIMESTAMP) AND YEAR(PaidAt) = YEAR(CURRENT_TIMESTAMP)) as MonthlyRevenue,
         (SELECT COUNT(*) FROM PaymentTracking WHERE Status = 'PENDING') as PendingPaymentsCount,
-        (SELECT ISNULL(SUM(Amount), 0) FROM PaymentTracking WHERE Status = 'PENDING') as PendingPaymentsAmount,
+        (SELECT COALESCE(SUM(Amount), 0) FROM PaymentTracking WHERE Status = 'PENDING') as PendingPaymentsAmount,
         (SELECT COUNT(*) FROM PaymentTracking WHERE Status = 'VERIFIED') as VerifiedPayments,
         (SELECT COUNT(*) FROM PaymentTracking) as TotalPayments,
         (SELECT COUNT(*) FROM Invoices WHERE Status = 'PAID') as PaidInvoices,
@@ -29,23 +29,23 @@ export async function GET(request: NextRequest) {
     `);
 
     // ── Monthly Revenue Trend (last 6 months) ──
-    const monthlyTrend = await pool.request().query(`
+    const monthlyTrend = await pool.query(`
       SELECT 
         FORMAT(PaidAt, 'MMM yyyy') as Month,
         YEAR(PaidAt) as Yr,
         MONTH(PaidAt) as Mo,
-        ISNULL(SUM(Amount), 0) as Revenue,
+        COALESCE(SUM(Amount), 0) as Revenue,
         COUNT(*) as Transactions
       FROM PaymentTracking
       WHERE Status = 'VERIFIED'
-        AND PaidAt >= DATEADD(MONTH, -6, GETDATE())
+        AND PaidAt >= DATEADD(MONTH, -6, CURRENT_TIMESTAMP)
       GROUP BY FORMAT(PaidAt, 'MMM yyyy'), YEAR(PaidAt), MONTH(PaidAt)
       ORDER BY Yr, Mo
     `);
 
     // ── Recent Payments ──
-    const recentPayments = await pool.request().query(`
-      SELECT TOP 20
+    const recentPayments = await pool.query(`
+      SELECT
         pt.*,
         r.Name as StudentName,
         r.Course as CourseName,
@@ -53,22 +53,22 @@ export async function GET(request: NextRequest) {
       FROM PaymentTracking pt
       LEFT JOIN Registrations r ON pt.RegistrationID = r.Id
       ORDER BY pt.CreatedAt DESC
-    `);
+     LIMIT 20`);
 
     // ── Payment Method Breakdown ──
-    const methodBreakdown = await pool.request().query(`
+    const methodBreakdown = await pool.query(`
       SELECT 
-        ISNULL(PaymentMethod, 'Unknown') as Method,
+        COALESCE(PaymentMethod, 'Unknown') as Method,
         COUNT(*) as Count,
-        ISNULL(SUM(Amount), 0) as Total
+        COALESCE(SUM(Amount), 0) as Total
       FROM PaymentTracking
       WHERE Status = 'VERIFIED'
       GROUP BY PaymentMethod
     `);
 
     // ── Pending Approval List for Finance ──
-    const pendingList = await pool.request().query(`
-      SELECT TOP 50
+    const pendingList = await pool.query(`
+      SELECT
         r.Id, r.Name, r.Email, r.Course, r.TrainingMode, r.Status, r.CreatedAt,
         pt.TransactionID, pt.PaymentProofPath, pt.Amount, pt.PaymentMethod, pt.Status as PaymentStatus
       FROM Registrations r
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       ) pt ON r.Id = pt.RegistrationID AND pt.rn = 1
       WHERE r.Status = 'PENDING'
       ORDER BY r.CreatedAt DESC
-    `);
+     LIMIT 50`);
 
     return NextResponse.json({
       success: true,

@@ -6,7 +6,7 @@ export async function GET() {
     const pool = await getConnection();
 
     // 1. Add SelectedSlotID to Registrations
-    await pool.request().query(`
+    await pool.query(`
       IF COL_LENGTH('Registrations', 'SelectedSlotID') IS NULL
       BEGIN
           ALTER TABLE Registrations ADD SelectedSlotID INT NULL;
@@ -14,7 +14,7 @@ export async function GET() {
     `);
 
     // 2. Add HolidayFlag to TrainingCalendar
-    await pool.request().query(`
+    await pool.query(`
       IF COL_LENGTH('TrainingCalendar', 'HolidayFlag') IS NULL
       BEGIN
           ALTER TABLE TrainingCalendar ADD HolidayFlag BIT DEFAULT 0;
@@ -22,7 +22,7 @@ export async function GET() {
     `);
 
     // 3. Create ReportTemplates Table
-    await pool.request().query(`
+    await pool.query(`
       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ReportTemplates' AND xtype='U')
       BEGIN
           CREATE TABLE ReportTemplates (
@@ -33,8 +33,8 @@ export async function GET() {
               Layout NVARCHAR(100),
               OutputType NVARCHAR(50),
               SortBy NVARCHAR(50),
-              CreatedAt DATETIME DEFAULT GETDATE(),
-              UpdatedAt DATETIME DEFAULT GETDATE()
+              CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+              UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
           );
       END
     `);

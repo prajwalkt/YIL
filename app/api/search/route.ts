@@ -18,32 +18,32 @@ export async function GET(request: NextRequest) {
     const qStr = `%${query}%`;
     
     // Search Users
-    const usersRes = await pool.request().input('Q', qStr).query(`
-      SELECT TOP 10 UserID as Id, FirstName + ' ' + LastName as Title, Email as Subtitle, 'User' as Type
+    const usersRes = await pool.query(`
+      SELECT UserID as Id, FirstName + ' ' + LastName as Title, Email as Subtitle, 'User' as Type
       FROM LMS_Users 
-      WHERE FirstName LIKE @Q OR LastName LIKE @Q OR Email LIKE @Q
-    `);
+      WHERE FirstName LIKE $1 OR LastName LIKE $2 OR Email LIKE $3
+     LIMIT 10`, [qStr, qStr, qStr]);
     
     // Search Courses
-    const coursesRes = await pool.request().input('Q', qStr).query(`
-      SELECT TOP 10 CourseID as Id, Title, Code as Subtitle, 'Course' as Type
+    const coursesRes = await pool.query(`
+      SELECT CourseID as Id, Title, Code as Subtitle, 'Course' as Type
       FROM LMS_Courses 
-      WHERE Title LIKE @Q OR Code LIKE @Q
-    `);
+      WHERE Title LIKE $1 OR Code LIKE $2
+     LIMIT 10`, [qStr, qStr]);
     
     // Search Invoices
-    const invoicesRes = await pool.request().input('Q', qStr).query(`
-      SELECT TOP 10 InvoiceID as Id, InvoiceNo as Title, StudentName as Subtitle, 'Invoice' as Type
+    const invoicesRes = await pool.query(`
+      SELECT InvoiceID as Id, InvoiceNo as Title, StudentName as Subtitle, 'Invoice' as Type
       FROM Invoices 
-      WHERE InvoiceNo LIKE @Q OR StudentName LIKE @Q OR Organization LIKE @Q
-    `);
+      WHERE InvoiceNo LIKE $1 OR StudentName LIKE $2 OR Organization LIKE $3
+     LIMIT 10`, [qStr, qStr, qStr]);
     
     // Search Certificates
-    const certsRes = await pool.request().input('Q', qStr).query(`
-      SELECT TOP 10 CertificateID as Id, CertificateNo as Title, ParticipantName as Subtitle, 'Certificate' as Type
+    const certsRes = await pool.query(`
+      SELECT CertificateID as Id, CertificateNo as Title, ParticipantName as Subtitle, 'Certificate' as Type
       FROM Certificates
-      WHERE CertificateNo LIKE @Q OR ParticipantName LIKE @Q
-    `);
+      WHERE CertificateNo LIKE $1 OR ParticipantName LIKE $2
+     LIMIT 10`, [qStr, qStr]);
 
     const results = [
       ...usersRes.recordset,

@@ -20,9 +20,7 @@ export async function GET(request: NextRequest) {
 
     const pool = await getConnection();
 
-    const resultCheck = await pool.request()
-      .input('ResultID', Number(resultId))
-      .query(`
+    const resultCheck = await pool.query(`
         SELECT ar.ResultID, ar.Score, ar.TotalMarks, ar.Percentage, ar.Passed,
                a.Title as AssessmentTitle, a.PassMarks, c.Title as CourseTitle,
                u.FirstName, u.LastName, u.UserID
@@ -30,22 +28,20 @@ export async function GET(request: NextRequest) {
         JOIN Assessments a ON ar.AssessmentID = a.AssessmentID
         JOIN LMS_Courses c ON a.CourseID = c.CourseID
         JOIN LMS_Users u ON ar.StudentID = u.UserID
-        WHERE ar.ResultID = @ResultID
-      `);
+        WHERE ar.ResultID = $1
+      `, [Number(resultId)]);
 
     if (resultCheck.recordset.length === 0) {
       return NextResponse.json({ success: false, message: 'Result not found' }, { status: 404 });
     }
 
-    const responses = await pool.request()
-      .input('ResultID', Number(resultId))
-      .query(`
+    const responses = await pool.query(`
         SELECT r.ResponseID, r.Question as QuestionID, r.Answer, r.Marks as AwardedMarks,
                q.QuestionText, q.CorrectAnswer, q.Marks as MaxMarks
         FROM AssessmentResponses r
         JOIN AssessmentQuestions q ON r.Question = q.QuestionID
-        WHERE r.ResultID = @ResultID
-      `);
+        WHERE r.ResultID = $1
+      `, [Number(resultId)]);
 
     return NextResponse.json({
       success: true,
@@ -75,9 +71,7 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
     
     // Validate result
-    const resultCheck = await pool.request()
-      .input('ResultID', Number(resultId))
-      .query(`
+    const resultCheck = await pool.query(`
         SELECT ar.AssessmentID, ar.StudentID, ar.TotalMarks, ar.Passed, ar.Score,
                a.Title as AssessmentTitle, a.PassMarks, c.Title as CourseTitle,
                u.FirstName, u.LastName
@@ -85,8 +79,8 @@ export async function POST(request: NextRequest) {
         JOIN Assessments a ON ar.AssessmentID = a.AssessmentID
         JOIN LMS_Courses c ON a.CourseID = c.CourseID
         JOIN LMS_Users u ON ar.StudentID = u.UserID
-        WHERE ar.ResultID = @ResultID
-      `);
+        WHERE ar.ResultID = $1
+      `, [Number(resultId)]);
 
     if (resultCheck.recordset.length === 0) {
       return NextResponse.json({ success: false, message: 'Result not found' }, { status: 404 });
@@ -100,10 +94,7 @@ export async function POST(request: NextRequest) {
     for (const [responseId, newMarks] of Object.entries(marksMap)) {
       const marks = Number(newMarks);
       totalScore += marks;
-      await pool.request()
-        .input('ResponseID', Number(responseId))
-        .input('Marks', marks)
-        .query(`UPDATE AssessmentResponses SET Marks = @Marks WHERE ResponseID = @ResponseID`);
+      await pool.query(`UPDATE AssessmentResponses SET Marks = $1 WHERE ResponseID = $2`, [marks, Number(responseId)]);
     }
 
     // Update overall result
@@ -112,16 +103,11 @@ export async function POST(request: NextRequest) {
     const percentage = totalMarks > 0 ? (totalScore / totalMarks) * 100 : 0;
     const passed = totalScore >= passMarks;
 
-    await pool.request()
-      .input('ResultID', Number(resultId))
-      .input('Score', totalScore)
-      .input('Percentage', percentage)
-      .input('Passed', passed ? 1 : 0)
-      .query(`
+    await pool.query(`
         UPDATE AssessmentResults 
-        SET Score = @Score, Percentage = @Percentage, Passed = @Passed 
-        WHERE ResultID = @ResultID
-      `);
+        SET Score = $1, Percentage = $2, Passed = $3 
+        WHERE ResultID = $4
+      `, [totalScore, percentage, passed ? 1 : 0, Number(resultId)]);
 
     // Regenerate PDF
     let pdfUrl = '';

@@ -14,13 +14,10 @@ export async function POST(request: NextRequest) {
       try {
 
         const pool = await getConnection();
-        await pool.request()
-          .input('SessionID', user.sessionId)
-          .input('UserID', user.userId)
-          .query(`
-            UPDATE LMS_Sessions SET IsActive = 0 WHERE SessionID = @SessionID;
-            UPDATE LMS_Users SET ActiveSessionToken = NULL WHERE UserID = @UserID AND ActiveSessionToken = @SessionID;
-          `);
+        await pool.query(`
+            UPDATE LMS_Sessions SET IsActive = 0 WHERE SessionID = $1;
+            UPDATE LMS_Users SET ActiveSessionToken = NULL WHERE UserID = $2 AND ActiveSessionToken = $3;
+          `, [user.sessionId, user.userId, user.sessionId]);
       } catch (err) {
         console.warn('Failed to invalidate session:', err);
       }

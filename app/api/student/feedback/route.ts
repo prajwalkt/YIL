@@ -17,10 +17,7 @@ export async function GET(request: NextRequest) {
     const pool = await getConnection();
 
     // Get enrolled courses
-    const enrolled = await pool.request()
-      .input('StudentID', user!.userId)
-      .input('UserRole', user!.role)
-      .query(`
+    const enrolled = await pool.query(`
         SELECT e.CourseID, c.Title as CourseTitle, e.EnrollmentID,
                u.FirstName + ' ' + u.LastName as TrainerName, u.UserID as TrainerID,
                tc.StartDate, tc.EndDate
@@ -28,22 +25,20 @@ export async function GET(request: NextRequest) {
         JOIN LMS_Courses c ON c.CourseID = e.CourseID
         LEFT JOIN TrainingCalendar tc ON tc.CalendarID = e.CalendarID
         LEFT JOIN LMS_Users u ON u.UserID = tc.TrainerID
-        WHERE e.StudentID = @StudentID
+        WHERE e.StudentID = $1
           AND e.Status IN ('ENROLLED', 'IN_PROGRESS', 'COMPLETED')
-          AND CAST(GETDATE() AS DATE) >= CAST(tc.EndDate AS DATE)
+          AND CAST(CURRENT_TIMESTAMP AS DATE) >= CAST(tc.EndDate AS DATE)
           AND (
-            @UserRole = 'AFFILIATE'
+            $2 = 'AFFILIATE'
             OR
             NOT EXISTS (SELECT 1 FROM Assessments a WHERE a.CourseID = e.CourseID AND a.IsActive = 1)
             OR
             EXISTS (SELECT 1 FROM AssessmentResults ar JOIN Assessments a2 ON ar.AssessmentID = a2.AssessmentID WHERE a2.CourseID = e.CourseID AND ar.StudentID = e.StudentID)
           )
-      `);
+      `, [user!.userId, user!.role]);
 
     // Check which courses already have feedback
-    const submitted = await pool.request()
-      .input('StudentID', user!.userId)
-      .query(`SELECT CourseID FROM Feedback WHERE StudentID = @StudentID`);
+    const submitted = await pool.query(`SELECT CourseID FROM Feedback WHERE StudentID = $1`, [user!.userId]);
 
     const submittedCourseIds = new Set(submitted.recordset.map((r: any) => r.CourseID));
 
@@ -78,40 +73,22 @@ export async function POST(request: NextRequest) {
     const pool = await getConnection();
 
     // Check if feedback already submitted
-    const existing = await pool.request()
-      .input('StudentID', user!.userId)
-      .input('CourseID', Number(courseId))
-      .query(`SELECT * FROM Feedback WHERE StudentID = @StudentID AND CourseID = @CourseID`);
+    const existing = await pool.query(`SELECT * FROM Feedback WHERE StudentID = $1 AND CourseID = $2`, [user!.userId, Number(courseId)]);
 
     if (existing.recordset.length > 0) {
       return NextResponse.json({ success: false, message: 'You have already submitted feedback for this course.' }, { status: 400 });
     }
 
     // Get student info
-    const studentInfo = await pool.request()
-      .input('UserID', user!.userId)
-      .query(`SELECT FirstName + ' ' + LastName as FullName FROM LMS_Users WHERE UserID = @UserID`);
+    const studentInfo = await pool.query(`SELECT FirstName + ' ' + LastName as FullName FROM LMS_Users WHERE UserID = $1`, [user!.userId]);
 
     const participantName = studentInfo.recordset[0]?.FullName || user!.email;
 
-    const insertResult = await pool.request()
-      .input('StudentID', user!.userId)
-      .input('ParticipantName', participantName)
-      .input('CourseID', Number(courseId))
-      .input('CourseName', courseName || '')
-      .input('TrainerID', trainerId || null)
-      .input('TrainerName', trainerName || '')
-      .input('OverallScore', Number(overallScore))
-      .input('ContentScore', Number(contentScore) || Number(overallScore))
-      .input('TrainerScore', Number(trainerScore) || Number(overallScore))
-      .input('FacilityScore', Number(facilityScore) || Number(overallScore))
-      .input('Remarks', remarks || '')
-      .input('TrainingDate', trainingDate || null)
-      .query(`
+    const insertResult = await pool.query(`
         INSERT INTO Feedback (StudentID, ParticipantName, CourseID, CourseName, TrainerID, TrainerName, OverallScore, ContentScore, TrainerScore, FacilityScore, Remarks, TrainingDate, SubmittedAt)
-        OUTPUT INSERTED.FeedbackID
-        VALUES (@StudentID, @ParticipantName, @CourseID, @CourseName, @TrainerID, @TrainerName, @OverallScore, @ContentScore, @TrainerScore, @FacilityScore, @Remarks, @TrainingDate, GETDATE())
-      `);
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
+        RETURNING FeedbackID
+      `, [user!.userId, participantName, Number(courseId), courseName || '', trainerId || null, trainerName || '', Number(overallScore), Number(contentScore) || Number(overallScore), Number(trainerScore) || Number(overallScore), Number(facilityScore) || Number(overallScore), remarks || '', trainingDate || null]);
 
     const feedbackId = insertResult.recordset[0].FeedbackID;
 
@@ -186,7 +163,7 @@ export async function POST(request: NextRequest) {
       await fs.writeFile(filePath, pdfBytes);
       pdfUrl = `/uploads/reports/${fileName}`;
       // Dispatch Feedback PDF to TM/Admin
-      const tmAdmins = await pool.request().query(`SELECT Email FROM LMS_Users WHERE Role IN ('TM', 'ADMIN') AND IsActive = 1`);
+      const tmAdmins = await pool.query(`SELECT Email FROM LMS_Users WHERE Role IN ('TM', 'ADMIN') AND IsActive = 1`);
       const { sendEmail } = await import('../../../library/email');
       
       for (const admin of tmAdmins.recordset) {

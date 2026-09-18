@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
     }
 
     const pool = await getConnection();
-    const userResult = await pool.request().input('UserID', userId).query(`
-      SELECT UserID, Email, FirstName, LastName, Phone FROM LMS_Users WHERE UserID = @UserID
-    `);
+    const userResult = await pool.query(`
+      SELECT UserID, Email, FirstName, LastName, Phone FROM LMS_Users WHERE UserID = $1
+    `, [userId]);
 
     if (userResult.recordset.length === 0) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
@@ -51,16 +51,13 @@ export async function POST(request: NextRequest) {
     const hash = await bcrypt.hash(tempPassword, 12);
 
     // Update the database to store the new hash and enforce a password change
-    await pool.request()
-      .input('Hash', hash)
-      .input('UserID', userId)
-      .query(`
+    await pool.query(`
         UPDATE LMS_Users 
-        SET PasswordHash = @Hash, 
+        SET PasswordHash = $1, 
             MustChangePassword = 1, 
             IsActive = 1 
-        WHERE UserID = @UserID
-      `);
+        WHERE UserID = $2
+      `, [hash, userId]);
 
     // Prepare content for multi-channel notification
     const loginUrl = process.env.APP_URL || 'http://localhost:3000/login';

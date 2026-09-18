@@ -69,9 +69,7 @@ export async function GET(request: NextRequest) {
     // Enrich with full payment data (proof path, method)
     const registrations = result.recordset;
     const enriched = await Promise.all(registrations.map(async (reg: any) => {
-      const pt = await pool.request()
-        .input('RegID', reg.Id)
-        .query(`SELECT TOP 1 TransactionID, PaymentProofPath, PaymentMethod, Status as PaymentStatus, CreatedAt as PaidAt FROM PaymentTracking WHERE RegistrationID = @RegID ORDER BY CreatedAt DESC`);
+      const pt = await pool.query(`SELECT TransactionID, PaymentProofPath, PaymentMethod, Status as PaymentStatus, CreatedAt as PaidAt FROM PaymentTracking WHERE RegistrationID = $1 ORDER BY CreatedAt DESC LIMIT 1`, [reg.Id]);
       if (pt.recordset.length > 0) {
         return { ...reg, ...pt.recordset[0] };
       }
@@ -105,7 +103,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const pool = await getConnection();
-    const regResult = await pool.request().input('Id', Number(registrationId)).query(`SELECT * FROM Registrations WHERE Id = @Id`);
+    const regResult = await pool.query(`SELECT * FROM Registrations WHERE Id = $1`, [Number(registrationId)]);
 
     if (regResult.recordset.length === 0) {
       return NextResponse.json({ success: false, message: 'Registration not found' }, { status: 404 });
@@ -116,36 +114,24 @@ export async function PUT(request: NextRequest) {
 
     if (action === 'APPROVE' && confirmRequestedDates && reg.PreferredStartDate && reg.PreferredEndDate) {
       // Find course ID
-      const courseCheck = await pool.request().input('CourseTitle', reg.Course).query(`SELECT CourseID FROM LMS_Courses WHERE Title = @CourseTitle`);
+      const courseCheck = await pool.query(`SELECT CourseID FROM LMS_Courses WHERE Title = $1`, [reg.Course]);
       let cId = courseCheck.recordset.length > 0 ? courseCheck.recordset[0].CourseID : null;
 
       // Create confirmed TrainingCalendar batch
-      const newCal = await pool.request()
-        .input('CourseID', cId)
-        .input('Title', reg.Course)
-        .input('TrainingMode', reg.TrainingMode)
-        .input('StartDate', reg.PreferredStartDate)
-        .input('EndDate', reg.PreferredEndDate)
-        .input('MaxParticipants', 20)
-        .input('TMConfirmedBy', user!.userId)
-        .input('TrainerID', trainerId ? Number(trainerId) : null)
-        .query(`
+      const newCal = await pool.query(`
           INSERT INTO TrainingCalendar 
           (CourseID, Title, TrainingType, StartDate, EndDate, Status, TMConfirmed, TMConfirmedAt, TMConfirmedBy, MaxParticipants, CurrentEnrolled, TrainerID)
           OUTPUT INSERTED.CalendarID
-          VALUES (@CourseID, @Title, @TrainingMode, @StartDate, @EndDate, 'SCHEDULED', 1, GETDATE(), @TMConfirmedBy, @MaxParticipants, 0, @TrainerID)
-        `);
+          VALUES ($1, $2, $3, $4, $5, 'SCHEDULED', 1, CURRENT_TIMESTAMP, $6, $7, 0, $8)
+        `, [cId, reg.Course, reg.TrainingMode, reg.PreferredStartDate, reg.PreferredEndDate, user!.userId, 20, trainerId ? Number(trainerId) : null]);
       selectedSlotId = newCal.recordset[0].CalendarID;
     } else if (action === 'APPROVE' && selectedSlotId && (user!.role === 'TM' || user!.role === 'ADMIN')) {
       // If TM or Admin approves and a batch is selected, mark that batch as confirmed
-      await pool.request()
-        .input('SlotID', Number(selectedSlotId))
-        .input('TMConfirmedBy', user!.userId)
-        .query(`
+      await pool.query(`
           UPDATE TrainingCalendar 
-          SET TMConfirmed = 1, TMConfirmedAt = GETDATE(), TMConfirmedBy = @TMConfirmedBy 
-          WHERE CalendarID = @SlotID
-        `);
+          SET TMConfirmed = 1, TMConfirmedAt = CURRENT_TIMESTAMP, TMConfirmedBy = $1 
+          WHERE CalendarID = $2
+        `, [user!.userId, Number(selectedSlotId)]);
     }
 
     let newStatus = reg.Status;
@@ -207,7 +193,7 @@ export async function PUT(request: NextRequest) {
 
     // ── Email Notifications ──
     if (newStatus === 'FINANCE_APPROVED') {
-      const tmUsers = await pool.request().query(`SELECT Email FROM LMS_Users WHERE Role='TM' AND IsActive=1`);
+      const tmUsers = await pool.query(`SELECT Email FROM LMS_Users WHERE Role='TM' AND IsActive=1`);
       for (const t of tmUsers.recordset) {
         await sendEmail({
           to: t.Email,
@@ -216,7 +202,7 @@ export async function PUT(request: NextRequest) {
         });
       }
     } else if (newStatus === 'TM_APPROVED') {
-      const adminUsers = await pool.request().query(`SELECT Email FROM LMS_Users WHERE Role='ADMIN' AND IsActive=1`);
+      const adminUsers = await pool.query(`SELECT Email FROM LMS_Users WHERE Role='ADMIN' AND IsActive=1`);
       for (const a of adminUsers.recordset) {
         await sendEmail({
           to: a.Email,
@@ -234,9 +220,7 @@ export async function PUT(request: NextRequest) {
       const userRole = registrationType === 'ORGANIZATION' ? 'AFFILIATE' : 'STUDENT';
 
       // ── Find existing user by email ──
-      const userCheck = await pool.request()
-        .input('Email', reg.Email)
-        .query(`SELECT UserID, Role, IsActive FROM LMS_Users WHERE Email = @Email`);
+      const userCheck = await pool.query(`SELECT UserID, Role, IsActive FROM LMS_Users WHERE Email = $1`, [reg.Email]);
 
       let studentId = 0;
       const tempPassword = generateTempPassword();
@@ -251,33 +235,19 @@ export async function PUT(request: NextRequest) {
         const fName = nameParts[0] || '';
         const lName = nameParts.slice(1).join(' ') || '';
 
-        const insertUser = await pool.request()
-          .input('FirstName', fName)
-          .input('LastName', lName)
-          .input('Email', reg.Email)
-          .input('Phone', reg.Phone || '')
-          .input('PasswordHash', hash)
-          .input('Role', userRole)
-          .input('Organization', reg.Organization || '')
-          .input('Country', reg.Country || '')
-          .query(`
+        const insertUser = await pool.query(`
             INSERT INTO LMS_Users (FirstName, LastName, Email, Phone, PasswordHash, Role, Organization, Country, IsApproved, IsActive, MustChangePassword)
             OUTPUT INSERTED.UserID
-            VALUES (@FirstName, @LastName, @Email, @Phone, @PasswordHash, @Role, @Organization, @Country, 1, 1, 1)
-          `);
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, 1, 1)
+          `, [fName, lName, reg.Email, reg.Phone || '', hash, userRole, reg.Organization || '', reg.Country || '']);
         studentId = insertUser.recordset[0].UserID;
         console.log(`[APPROVALS] Successfully created new user ${reg.Email} with UserID ${studentId}.`);
 
         // Insert welcome message with temporary password into Notification Centre
-        await pool.request()
-          .input('SenderID', user!.userId)
-          .input('ReceiverID', studentId)
-          .input('Subject', 'Your YTS Account is Ready')
-          .input('Body', `Welcome to Yokogawa Training Services! Your account has been created successfully.\n\nUsername: ${reg.Email}\nTemporary Password: ${tempPassword}\n\nPlease login and change your password immediately.`)
-          .query(`
+        await pool.query(`
             INSERT INTO Messages (SenderID, ReceiverID, Subject, Body)
-            VALUES (@SenderID, @ReceiverID, @Subject, @Body)
-          `);
+            VALUES ($1, $2, $3, $4)
+          `, [user!.userId, studentId, 'Your YTS Account is Ready', `Welcome to Yokogawa Training Services! Your account has been created successfully.\n\nUsername: ${reg.Email}\nTemporary Password: ${tempPassword}\n\nPlease login and change your password immediately.`]);
       } else {
         // ── EXISTING user: force password reset and update latest identity ──
         studentId = userCheck.recordset[0].UserID;
@@ -287,37 +257,25 @@ export async function PUT(request: NextRequest) {
         const fName = nameParts[0] || '';
         const lName = nameParts.slice(1).join(' ') || '';
 
-        await pool.request()
-          .input('UserID', studentId)
-          .input('PasswordHash', hash)
-          .input('Role', userRole)
-          .input('FirstName', fName)
-          .input('LastName', lName)
-          .input('Organization', reg.Organization || '')
-          .input('Country', reg.Country || '')
-          .input('Phone', reg.Phone || '')
-          .query(`
+        await pool.query(`
             UPDATE LMS_Users 
             SET 
               IsApproved = 1, 
               IsActive = 1, 
-              PasswordHash = @PasswordHash, 
+              PasswordHash = $1, 
               MustChangePassword = 1, 
-              Role = @Role,
-              FirstName = @FirstName,
-              LastName = @LastName,
-              Organization = @Organization,
-              Country = @Country,
-              Phone = @Phone
-            WHERE UserID = @UserID
-          `);
+              Role = $2,
+              FirstName = $3,
+              LastName = $4,
+              Organization = $5,
+              Country = $6,
+              Phone = $7
+            WHERE UserID = $8
+          `, [hash, userRole, fName, lName, reg.Organization || '', reg.Country || '', reg.Phone || '', studentId]);
       }
 
       // ── Link the approved registration back to the user record ──
-      await pool.request()
-        .input('UserID', studentId)
-        .input('RegId', reg.Id)
-        .query(`UPDATE Registrations SET LinkedUserID = @UserID WHERE Id = @RegId`);
+      await pool.query(`UPDATE Registrations SET LinkedUserID = $1 WHERE Id = $2`, [studentId, reg.Id]);
 
       // ── PDF GENERATION MOVED BELOW DATES ──
 
@@ -328,9 +286,7 @@ export async function PUT(request: NextRequest) {
 
       if (reg.SelectedSlotID) {
         // Try to get actual training calendar dates
-        const slotResult = await pool.request()
-          .input('CalendarID', reg.SelectedSlotID)
-          .query(`SELECT TOP 1 StartDate, EndDate FROM TrainingCalendar WHERE CalendarID = @CalendarID`);
+        const slotResult = await pool.query(`SELECT StartDate, EndDate FROM TrainingCalendar WHERE CalendarID = $1 LIMIT 1`, [reg.SelectedSlotID]);
         if (slotResult.recordset.length > 0) {
           accessStart = slotResult.recordset[0].StartDate;
           // Use the larger of: calendar EndDate or StartDate + durationDays
@@ -350,9 +306,7 @@ export async function PUT(request: NextRequest) {
       }
 
       // ── Auto-enroll into course ──
-      const courseCheck = await pool.request()
-        .input('CourseTitle', reg.Course)
-        .query(`SELECT CourseID FROM LMS_Courses WHERE Title = @CourseTitle`);
+      const courseCheck = await pool.query(`SELECT CourseID FROM LMS_Courses WHERE Title = $1`, [reg.Course]);
 
       let courseId = 0;
       if (courseCheck.recordset.length > 0) {
@@ -360,46 +314,31 @@ export async function PUT(request: NextRequest) {
       } else {
         // Dynamically create missing course
         const code = reg.Course.substring(0, 4).toUpperCase() + Math.floor(Math.random() * 1000);
-        const insertCourse = await pool.request()
-          .input('Title', reg.Course)
-          .input('Code', code)
-          .input('Mode', reg.TrainingMode || 'Offline Training')
-          .input('Duration', durationDays)
-          .query(`
+        const insertCourse = await pool.query(`
             INSERT INTO LMS_Courses (Title, Code, Description, Mode, Duration, FeeUSD, FeeINR, Category, Status)
             OUTPUT INSERTED.CourseID
-            VALUES (@Title, @Code, 'Dynamically created course', @Mode, @Duration, 0, 0, 'General', 'ACTIVE')
-          `);
+            VALUES ($1, $2, 'Dynamically created course', $3, $4, 0, 0, 'General', 'ACTIVE')
+          `, [reg.Course, code, reg.TrainingMode || 'Offline Training', durationDays]);
         courseId = insertCourse.recordset[0].CourseID;
         console.log(`[APPROVALS] Dynamically created course '${reg.Course}' with ID ${courseId}`);
       }
 
       try {
         // Use MERGE to avoid duplicate-enrollment errors while still updating access dates
-        await pool.request()
-          .input('StudentID', studentId)
-          .input('CourseID', courseId)
-          .input('RegistrationID', reg.Id)
-          .input('AccessStart', accessStart)
-          .input('AccessEnd', accessEnd)
-          .input('Duration', durationDays)
-          .input('CalendarID', reg.SelectedSlotID ? Number(reg.SelectedSlotID) : null)
-          .query(`
-            MERGE Enrollments AS target
-            USING (SELECT @StudentID AS StudentID, @CourseID AS CourseID) AS source
-            ON target.StudentID = source.StudentID AND target.CourseID = source.CourseID
-            WHEN MATCHED THEN
-              UPDATE SET
-                RegistrationID = @RegistrationID,
-                AccessStartDate = @AccessStart,
-                AccessEndDate = @AccessEnd,
-                Duration = @Duration,
-                CalendarID = @CalendarID,
-                Status = 'ACTIVE'
-            WHEN NOT MATCHED THEN
-              INSERT (StudentID, CourseID, RegistrationID, AccessStartDate, AccessEndDate, Duration, CalendarID, Status, Progress)
-              VALUES (@StudentID, @CourseID, @RegistrationID, @AccessStart, @AccessEnd, @Duration, @CalendarID, 'ACTIVE', 0);
-          `);
+        await pool.query(`
+            INSERT INTO "Enrollments" 
+              ("StudentID", "CourseID", "RegistrationID", "AccessStartDate", "AccessEndDate", "Duration", "CalendarID", "Status", "Progress")
+            VALUES 
+              ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE', 0)
+            ON CONFLICT ("StudentID", "CourseID") 
+            DO UPDATE SET
+              "RegistrationID" = EXCLUDED."RegistrationID",
+              "AccessStartDate" = EXCLUDED."AccessStartDate",
+              "AccessEndDate" = EXCLUDED."AccessEndDate",
+              "Duration" = EXCLUDED."Duration",
+              "CalendarID" = EXCLUDED."CalendarID",
+              "Status" = 'ACTIVE';
+          `, [studentId, courseId, reg.Id, accessStart, accessEnd, durationDays, reg.SelectedSlotID ? Number(reg.SelectedSlotID) : null]);
       } catch (err) {
         console.warn(`[APPROVALS] Merge failed, likely already enrolled. Skipping MERGE:`, err);
       }
@@ -409,7 +348,7 @@ export async function PUT(request: NextRequest) {
       let trainerEmail = '';
       if (trainerId || reg.TrainerId) {
         const tId = trainerId || reg.TrainerId;
-        const tResult = await pool.request().input('TID', Number(tId)).query(`SELECT FirstName, LastName, Email FROM LMS_Users WHERE UserID = @TID`);
+        const tResult = await pool.query(`SELECT FirstName, LastName, Email FROM LMS_Users WHERE UserID = $1`, [Number(tId)]);
         if (tResult.recordset.length > 0) {
           trainerName = `${tResult.recordset[0].FirstName} ${tResult.recordset[0].LastName}`;
           trainerEmail = tResult.recordset[0].Email;
