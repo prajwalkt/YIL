@@ -42,7 +42,6 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/mssql": "^12.3.0",
     "@types/node": "^20",
@@ -51,7 +50,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "postcss": "^8.5.19",
-    "puppeteer": "^25.9.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
