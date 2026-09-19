@@ -32,11 +32,11 @@ export async function GET() {
             WHEN COALESCE(tc.TMConfirmed, 0) = 1 THEN 'CONFIRMED'
             ELSE 'OPEN'
           END as ColorStatus
-        FROM TrainingCalendar tc
-        LEFT JOIN LMS_Users u ON tc.TrainerID = u.UserID
+        FROM "TrainingCalendar" tc
+        LEFT JOIN "LMS_Users" u ON tc.TrainerID = u.UserID
         LEFT JOIN (
           SELECT SelectedSlotID, COUNT(*) as RegCount
-          FROM Registrations
+          FROM "Registrations"
           WHERE Status NOT IN ('REJECTED', 'CANCELLED')
             AND SelectedSlotID IS NOT NULL
           GROUP BY SelectedSlotID
@@ -60,11 +60,11 @@ export async function GET() {
               WHEN tc.Status = 'COMPLETED' THEN 'COMPLETED'
               ELSE 'OPEN'
             END as ColorStatus
-          FROM TrainingCalendar tc
-          LEFT JOIN LMS_Users u ON tc.TrainerID = u.UserID
+          FROM "TrainingCalendar" tc
+          LEFT JOIN "LMS_Users" u ON tc.TrainerID = u.UserID
           LEFT JOIN (
             SELECT SelectedSlotID, COUNT(*) as RegCount
-            FROM Registrations
+            FROM "Registrations"
             WHERE Status NOT IN ('REJECTED', 'CANCELLED')
               AND SelectedSlotID IS NOT NULL
             GROUP BY SelectedSlotID

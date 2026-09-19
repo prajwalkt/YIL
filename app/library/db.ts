@@ -1,5 +1,27 @@
 import { Pool } from '@neondatabase/serverless';
 
+const KNOWN_TABLES = [
+  'Announcements', 'TrainingCalendar', 'Messages', 'Enrollments', 'CourseMaterials',
+  'Certificates', 'WaitingList', 'Feedback', 'Assessments', 'AssessmentQuestions',
+  'AssessmentResults', 'ErrorLogs', 'Testimonials', 'OrganizationBranding', 'Invoices',
+  'CourseMaterialVersions', 'NotificationConfig', 'PasswordResetTokens', 'AuditLog',
+  'Registrations', 'ReportTemplates', 'LoginAttempts', 'TrainingEnquiries', 'AffiliateRegions',
+  'LMS_Sessions', 'VMTemplates', 'PaymentTracking', 'VMInstances', 'Notifications',
+  'AssessmentResponses', 'FeedbackResponses', 'VMSessions', 'SystemSettings', 'Attendance',
+  'NotificationLog', 'CourseModes', 'ELearningContent', 'LMS_Users', 'ELearningProgress',
+  'TrainerProfiles', 'LMS_Courses'
+];
+
+function quoteTables(sql: string) {
+  let processed = sql;
+  for (const table of KNOWN_TABLES) {
+    // Only quote if it's not already quoted and matches exactly as a word
+    const regex = new RegExp(`\\b(?<!")(${table})(?!")\\b`, 'g');
+    processed = processed.replace(regex, '"$1"');
+  }
+  return processed;
+}
+
 const pool = new Pool({
   connectionString: process.env.NEON_DATABASE_URL,
 });
@@ -7,14 +29,14 @@ const pool = new Pool({
 export async function getConnection() {
   return {
     query: async (sqlStr: string, values?: any[]) => {
-      const res = await pool.query(sqlStr, values);
+      const res = await pool.query(quoteTables(sqlStr), values);
       return { recordset: res.rows, rowsAffected: [res.rowCount] };
     },
     connect: async () => {
       const client = await pool.connect();
       return {
         query: async (sqlStr: string, values?: any[]) => {
-          const res = await client.query(sqlStr, values);
+          const res = await client.query(quoteTables(sqlStr), values);
           return { recordset: res.rows, rowsAffected: [res.rowCount] };
         },
         release: () => client.release()
@@ -39,7 +61,7 @@ export async function getConnection() {
               index++;
             }
           }
-          const res = await pool.query(pgSql, values);
+          const res = await pool.query(quoteTables(pgSql), values);
           return { recordset: res.rows, rowsAffected: [res.rowCount] };
         }
       };
@@ -53,7 +75,7 @@ export async function getConnection() {
         },
         query: async (sqlStr: string, values?: any[]) => {
           if (!client) throw new Error("Transaction not started");
-          const res = await client.query(sqlStr, values);
+          const res = await client.query(quoteTables(sqlStr), values);
           return { recordset: res.rows, rowsAffected: [res.rowCount] };
         },
         commit: async () => {
