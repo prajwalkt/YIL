@@ -1,4 +1,3 @@
-import DOMPurify from 'isomorphic-dompurify';
 import { NextRequest } from 'next/server';
 
 export class ValidationError extends Error {
@@ -26,16 +25,9 @@ export function hasMaliciousPayload(input: string): boolean {
   return false;
 }
 
-/**
- * Sanitizes HTML by stripping all tags and dangerous attributes.
- * This completely prevents XSS and HTML injection.
- */
 export function sanitizeHtml(input: string): string {
   if (!input) return input;
-  return DOMPurify.sanitize(input, {
-    ALLOWED_TAGS: [], // Strip all HTML tags
-    ALLOWED_ATTR: [],
-  }).trim();
+  return input.replace(/<[^>]*>/g, '').trim();
 }
 
 /**
