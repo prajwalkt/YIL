@@ -114,6 +114,14 @@ export async function PUT(request: NextRequest) {
     const reg = regResult.recordset[0];
     selectedSlotId = selectedSlotId || reg.SelectedSlotID;
 
+    let resolvedTrainerName = null;
+    if (trainerId) {
+      const trRes = await pool.request().input('TID', Number(trainerId)).query(`SELECT FirstName, LastName FROM LMS_Users WHERE UserID = @TID`);
+      if (trRes.recordset.length > 0) {
+        resolvedTrainerName = `${trRes.recordset[0].FirstName} ${trRes.recordset[0].LastName}`;
+      }
+    }
+
     if (action === 'APPROVE' && confirmRequestedDates && reg.PreferredStartDate && reg.PreferredEndDate) {
       // Find course ID
       const courseCheck = await pool.request().input('CourseTitle', reg.Course).query(`SELECT CourseID FROM LMS_Courses WHERE Title = @CourseTitle`);
@@ -124,28 +132,35 @@ export async function PUT(request: NextRequest) {
         .input('CourseID', cId)
         .input('Title', reg.Course)
         .input('TrainingMode', reg.TrainingMode)
-        .input('StartDate', reg.PreferredStartDate)
-        .input('EndDate', reg.PreferredEndDate)
+        .input('StartDate', reg.FinalStartDate || reg.PreferredStartDate || reg.OriginalStartDate)
+        .input('EndDate', reg.FinalEndDate || reg.PreferredEndDate || reg.OriginalEndDate)
         .input('MaxParticipants', 20)
         .input('TMConfirmedBy', user!.userId)
         .input('TrainerID', trainerId ? Number(trainerId) : null)
+        .input('TrainerName', resolvedTrainerName)
         .query(`
           INSERT INTO TrainingCalendar 
-          (CourseID, Title, TrainingType, StartDate, EndDate, Status, TMConfirmed, TMConfirmedAt, TMConfirmedBy, MaxParticipants, CurrentEnrolled, TrainerID)
+          (CourseID, Title, TrainingType, StartDate, EndDate, Status, TMConfirmed, TMConfirmedAt, TMConfirmedBy, MaxParticipants, CurrentEnrolled, TrainerID, TrainerName)
           OUTPUT INSERTED.CalendarID
-          VALUES (@CourseID, @Title, @TrainingMode, @StartDate, @EndDate, 'SCHEDULED', 1, GETDATE(), @TMConfirmedBy, @MaxParticipants, 0, @TrainerID)
+          VALUES (@CourseID, @Title, @TrainingMode, @StartDate, @EndDate, 'SCHEDULED', 1, GETDATE(), @TMConfirmedBy, @MaxParticipants, 0, @TrainerID, @TrainerName)
         `);
       selectedSlotId = newCal.recordset[0].CalendarID;
     } else if (action === 'APPROVE' && selectedSlotId && (user!.role === 'TM' || user!.role === 'ADMIN')) {
-      // If TM or Admin approves and a batch is selected, mark that batch as confirmed
-      await pool.request()
+      // If TM or Admin approves and a batch is selected, mark that batch as confirmed and update trainer
+      let calUpdateQuery = `UPDATE TrainingCalendar SET TMConfirmed = 1, TMConfirmedAt = GETDATE(), TMConfirmedBy = @TMConfirmedBy`;
+      const calReq = pool.request()
         .input('SlotID', Number(selectedSlotId))
-        .input('TMConfirmedBy', user!.userId)
-        .query(`
-          UPDATE TrainingCalendar 
-          SET TMConfirmed = 1, TMConfirmedAt = GETDATE(), TMConfirmedBy = @TMConfirmedBy 
-          WHERE CalendarID = @SlotID
-        `);
+        .input('TMConfirmedBy', user!.userId);
+        
+      if (trainerId) {
+        calReq.input('TrainerID', Number(trainerId));
+        calReq.input('TrainerName', resolvedTrainerName);
+        calUpdateQuery += `, TrainerID = @TrainerID, TrainerName = @TrainerName`;
+      }
+      
+      calUpdateQuery += ` WHERE CalendarID = @SlotID`;
+      
+      await calReq.query(calUpdateQuery);
     }
 
     let newStatus = reg.Status;
@@ -215,6 +230,26 @@ export async function PUT(request: NextRequest) {
           html: `<p>Finance has approved the registration for <strong>${reg.Name}</strong> (${reg.Course}). It is now pending your approval.</p>`,
         });
       }
+
+      const htmlBody = `
+        <h3>Finance Approval Successful</h3>
+        <p>Dear ${reg.Name},</p>
+        <p>Your registration for <strong>${reg.Course}</strong> has passed the Finance approval stage.</p>
+        <p>It is now being reviewed by the Training Manager.</p>
+      `;
+      const textBody = `Hi ${reg.Name}, your registration for ${reg.Course} has passed Finance approval. It is now with the Training Manager.`;
+      
+      await sendMultiChannelNotification({
+        userId: reg.LinkedUserID || null,
+        registrationId: reg.Id,
+        email: reg.Email,
+        phone: reg.Phone || undefined,
+        type: 'FINANCE_APPROVED',
+        subject: 'Registration Update - Finance Approved',
+        html: htmlBody,
+        text: textBody,
+        recipientName: reg.Name,
+      });
     } else if (newStatus === 'TM_APPROVED') {
       const adminUsers = await pool.request().query(`SELECT Email FROM LMS_Users WHERE Role='ADMIN' AND IsActive=1`);
       for (const a of adminUsers.recordset) {
@@ -224,6 +259,26 @@ export async function PUT(request: NextRequest) {
           html: `<p>Training Manager has approved the registration for <strong>${reg.Name}</strong> (${reg.Course}). It is now pending final Admin approval.</p>`,
         });
       }
+
+      const htmlBody = `
+        <h3>Training Manager Approval Successful</h3>
+        <p>Dear ${reg.Name},</p>
+        <p>Your registration for <strong>${reg.Course}</strong> has been approved by the Training Manager.</p>
+        <p>It is now pending final Administrative approval and batch assignment.</p>
+      `;
+      const textBody = `Hi ${reg.Name}, your registration for ${reg.Course} has been approved by the Training Manager. Pending final Admin approval.`;
+      
+      await sendMultiChannelNotification({
+        userId: reg.LinkedUserID || null,
+        registrationId: reg.Id,
+        email: reg.Email,
+        phone: reg.Phone || undefined,
+        type: 'TM_APPROVED',
+        subject: 'Registration Update - TM Approved',
+        html: htmlBody,
+        text: textBody,
+        recipientName: reg.Name,
+      });
     } else if (newStatus === 'APPROVED') {
       const { getCourseDurationDays } = await import('../../../library/courseDurations');
 
@@ -393,11 +448,11 @@ export async function PUT(request: NextRequest) {
                 RegistrationID = @RegistrationID,
                 AccessStartDate = @AccessStart,
                 AccessEndDate = @AccessEnd,
-                Duration = @Duration,
+                DurationDays = @Duration,
                 CalendarID = @CalendarID,
                 Status = 'ACTIVE'
             WHEN NOT MATCHED THEN
-              INSERT (StudentID, CourseID, RegistrationID, AccessStartDate, AccessEndDate, Duration, CalendarID, Status, Progress)
+              INSERT (StudentID, CourseID, RegistrationID, AccessStartDate, AccessEndDate, DurationDays, CalendarID, Status, ProgressPercent)
               VALUES (@StudentID, @CourseID, @RegistrationID, @AccessStart, @AccessEnd, @Duration, @CalendarID, 'ACTIVE', 0);
           `);
       } catch (err) {
@@ -490,10 +545,19 @@ export async function PUT(request: NextRequest) {
       });
 
     } else if (newStatus.includes('REJECTED')) {
-      await sendEmail({
-        to: reg.Email,
+      const htmlBody = `<p>Dear ${reg.Name},</p><p>We regret to inform you that your registration for <strong>${reg.Course}</strong> has been rejected at this time.</p><p>Remarks: ${remarks || 'None'}</p><p>Please contact YTS for further assistance.</p>`;
+      const textBody = `Hi ${reg.Name}, we regret to inform you that your registration for ${reg.Course} has been rejected at this time. Remarks: ${remarks || 'None'}. Please contact YTS for further assistance.`;
+      
+      await sendMultiChannelNotification({
+        userId: reg.LinkedUserID || null,
+        registrationId: reg.Id,
+        email: reg.Email,
+        phone: reg.Phone || undefined,
+        type: 'REGISTRATION_REJECTED',
         subject: `Registration Not Approved — ${reg.Course}`,
-        html: `<p>Dear ${reg.Name},</p><p>We regret to inform you that your registration for <strong>${reg.Course}</strong> has been rejected at this time.</p><p>Remarks: ${remarks || 'None'}</p><p>Please contact YTS for further assistance.</p>`,
+        html: htmlBody,
+        text: textBody,
+        recipientName: reg.Name,
       });
     }
 

@@ -225,11 +225,8 @@ export default function LearnerPortal({ userRole = 'STUDENT' }: { userRole?: 'ST
             {[
               { id: 'learning', label: 'My Learning', icon: <PlayCircle size={16}/> },
               { id: 'elearning', label: 'E-Learning', icon: <Tv size={16}/> },
-              { id: 'assessments', label: 'Assessments', icon: <ClipboardList size={16}/> },
-              { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={16}/> },
               { id: 'certificates', label: 'Certificates', icon: <Award size={16}/> },
               { id: 'invoices', label: 'Billing', icon: <DollarSign size={16}/> },
-              { id: 'materials', label: 'Materials', icon: <BookOpen size={16}/> },
               { id: 'inbox', label: 'Inbox', icon: <MessageSquare size={16}/> },
               { id: 'profile', label: 'Profile', icon: <UserIcon size={16}/> },
             ].map(tab => (
@@ -309,7 +306,9 @@ export default function LearnerPortal({ userRole = 'STUDENT' }: { userRole?: 'ST
                       }`}>{e.Status}</span>
                       <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-md">{e.Mode}</span>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-1">{e.CourseTitle}</h3>
+                    <a href={`/student/course/${e.EnrollmentID}`} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-blue-600 block mb-1">
+                      <h3 className="text-lg font-bold text-gray-800">{e.CourseTitle}</h3>
+                    </a>
                     {e.DateApprovalStatus === 'PENDING' ? (
                       <p className="text-sm text-orange-500 mb-3 flex items-center gap-2 font-bold">
                         <Clock size={14} className="text-orange-400"/> Requested: {new Date(e.OriginalStartDate).toLocaleDateString()} - {new Date(e.OriginalEndDate).toLocaleDateString()} (Pending)
@@ -377,26 +376,28 @@ export default function LearnerPortal({ userRole = 'STUDENT' }: { userRole?: 'ST
                           </div>
                         </div>
                         
-                        <div className="flex gap-2 mb-4">
-                          {userRole === 'STUDENT' && e.AccessExpired && (
-                            <button onClick={() => setActiveTab('assessments')} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 hover:bg-blue-100 transition-colors"><ClipboardList size={10}/> Attend Quiz</button>
+                        <div className="flex gap-2 flex-wrap mb-4 justify-center">
+                          {e.TemplateID && (
+                            <button onClick={() => openPracticeSession(e)} className="flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 hover:bg-orange-100 transition-colors shadow-sm"><Tv size={12}/> Practice Session</button>
                           )}
-                          {e.AccessExpired && (
-                            <button onClick={() => setActiveTab('feedback')} className="flex items-center gap-1 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition-colors"><MessageSquare size={10}/> Give Feedback</button>
+                          {userRole === 'STUDENT' && (
+                            <button onClick={() => setActiveTab('assessments')} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors shadow-sm"><ClipboardList size={12}/> Assessment</button>
                           )}
+                          <button onClick={() => setActiveTab('feedback')} className="flex items-center gap-1 text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition-colors shadow-sm"><MessageSquare size={12}/> Feedback</button>
+                          <a href={`/student/manual/${e.EnrollmentID}?url=${encodeURIComponent(e.ManualURL || '/manual/scormcontent/index.html')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100 hover:bg-teal-100 transition-colors shadow-sm"><BookOpen size={12}/> Material</a>
                         </div>
                         
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 mt-4 border-t border-gray-100 pt-4">
                           {e.Status === 'COMPLETED' ? (
-                            <button className="flex-1 py-2.5 bg-green-50 text-green-700 rounded-xl text-sm font-bold border border-green-200 hover:bg-green-100 transition-colors flex items-center justify-center gap-2">
+                            <button className="flex-1 py-2.5 bg-green-50 text-green-700 rounded-xl text-sm font-bold border border-green-200 hover:bg-green-100 transition-colors flex items-center justify-center gap-2 shadow-sm">
                               <Award size={16}/> View Certificate
                             </button>
                           ) : !e.AccessStarted ? (
-                            <div className="flex-1 py-2.5 bg-gray-100 text-gray-500 rounded-xl text-sm font-bold border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed">
+                            <div className="flex-1 py-2.5 bg-gray-100 text-gray-500 rounded-xl text-sm font-bold border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed shadow-sm">
                               🔒 Course Not Yet Started
                             </div>
                           ) : e.AccessExpired ? (
-                            <div className="flex-1 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold border border-red-200 flex items-center justify-center gap-2 cursor-not-allowed">
+                            <div className="flex-1 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold border border-red-200 flex items-center justify-center gap-2 cursor-not-allowed shadow-sm">
                               🔒 Course Access Expired
                             </div>
                           ) : (
@@ -415,6 +416,7 @@ export default function LearnerPortal({ userRole = 'STUDENT' }: { userRole?: 'ST
                                   <Tv size={16}/> Practice Session
                                 </button>
                               )}
+
                             </>
                           )}
                         </div>

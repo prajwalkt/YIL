@@ -154,17 +154,33 @@ const [trainingMode, setTrainingMode] = useState("");
 
               </div>
 
-              <p className="mt-8 font-semibold">
-                OR Upload Payment Screenshot
+              <p className="mt-8 font-semibold text-slate-800">
+                Payment Proof
               </p>
+
+              <div className="flex items-center gap-4 mt-3">
+                <label 
+                  htmlFor="paymentProof" 
+                  className="cursor-pointer bg-[#004098] hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all"
+                >
+                  Choose File
+                </label>
+                <span className="text-slate-700 font-medium">
+                  {file ? file.name : "No file chosen"}
+                </span>
+              </div>
 
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                className="mt-3 w-full border rounded-xl p-4 bg-white"
+                id="paymentProof"
+                name="paymentProof"
+                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/png,image/jpeg"
+                className="hidden"
                 onChange={(e) => {
-                  if (e.target.files) {
+                  if (e.target.files && e.target.files.length > 0) {
                     setFile(e.target.files[0]);
+                  } else {
+                    setFile(null);
                   }
                 }}
               />
@@ -183,13 +199,29 @@ const [trainingMode, setTrainingMode] = useState("");
                 Upload your Wire Transfer / Bank Transfer document.
               </p>
 
+              <div className="flex items-center gap-4 mt-6">
+                <label 
+                  htmlFor="paymentProofInternational" 
+                  className="cursor-pointer bg-[#004098] hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all"
+                >
+                  Choose File
+                </label>
+                <span className="text-slate-700 font-medium">
+                  {file ? file.name : "No file chosen"}
+                </span>
+              </div>
+
               <input
                 type="file"
-                accept=".pdf"
-                className="mt-6 w-full border rounded-xl p-4 bg-white"
+                id="paymentProofInternational"
+                name="paymentProof"
+                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/png,image/jpeg"
+                className="hidden"
                 onChange={(e) => {
-                  if (e.target.files) {
+                  if (e.target.files && e.target.files.length > 0) {
                     setFile(e.target.files[0]);
+                  } else {
+                    setFile(null);
                   }
                 }}
               />
@@ -200,9 +232,9 @@ const [trainingMode, setTrainingMode] = useState("");
 
           {/* Transaction */}
 
-          <div>
+          <div className="mt-6">
 
-            <label className="font-bold text-lg">
+            <label className="font-bold text-lg text-slate-800">
               Transaction ID
             </label>
 
@@ -213,7 +245,7 @@ const [trainingMode, setTrainingMode] = useState("");
                 setTransactionId(e.target.value)
               }
               placeholder="Enter Transaction ID"
-              className="w-full mt-3 border rounded-xl p-4"
+              className="w-full mt-3 border border-slate-300 rounded-xl p-4 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
           </div>

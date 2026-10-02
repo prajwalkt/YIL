@@ -392,13 +392,13 @@ className="text-blue-700"
 
 <h3 className="text-3xl font-bold">
 
-Interactive Manual
+Course Material
 
 </h3>
 
 <p className="text-slate-500 mt-4 leading-7">
 
-Open the complete Rise 360 interactive manual exactly like the original downloaded version.
+Open the complete Rise 360 Course Material exactly like the original downloaded version.
 
 </p>
 
@@ -406,7 +406,7 @@ Open the complete Rise 360 interactive manual exactly like the original download
   onClick={() => window.location.href = "/manuals"}
   className="mt-10 bg-[#004098] hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold"
 >
-  Open Interactive Manuals
+  Open Course Materials
 </button>
 
 </div>
@@ -497,7 +497,7 @@ Back
 
 <h2 className="text-3xl font-bold text-[#004098]">
 
-Interactive Manual
+Course Material
 
 </h2>
 
@@ -512,7 +512,7 @@ Rise 360 Interactive Course
 <iframe
   src="/manual/scormcontent/index.html"
   className="w-full h-[85vh] border-0"
-  title="Interactive Manual"
+  title="Course Material"
 />
 
 </div>

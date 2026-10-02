@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     // Get active enrollments
     const enrollmentsResult = await req.query(`
       SELECT e.*, c.Title as CourseTitle, ISNULL(r.TrainingMode, c.Mode) as Mode,
-             tc.StartDate, tc.EndDate, tc.TrainerName, tc.Location, c.Duration as DurationDays,
+             c.ManualURL,
+             tc.StartDate, tc.EndDate, tc.TrainerName, tc.Location,
              (SELECT COUNT(*) FROM Attendance a WHERE a.EnrollmentID = e.EnrollmentID AND a.Status = 'Present') as DaysAttended,
              (SELECT TOP 1 WatchedSeconds FROM ELearningProgress el WHERE el.EnrollmentID = e.EnrollmentID) as WatchedSeconds,
              (SELECT TOP 1 TotalSeconds FROM ELearningProgress el WHERE el.EnrollmentID = e.EnrollmentID) as TotalSeconds,
@@ -44,9 +45,9 @@ export async function GET(request: NextRequest) {
         accessExpired = now > endD;
       }
       if (enr.StartDate) {
-        const startD = new Date(enr.StartDate);
-        startD.setHours(0, 0, 0, 0);
-        accessStarted = now >= startD;
+        const nowStr = now.toISOString().split('T')[0];
+        const startStr = new Date(enr.StartDate).toISOString().split('T')[0];
+        accessStarted = nowStr >= startStr;
       }
 
       let computedProgress = 0;

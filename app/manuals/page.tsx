@@ -32,7 +32,7 @@ export default function ManualsPage() {
       <div className="max-w-5xl mx-auto">
         <div className="mb-6 flex justify-between items-center">
           <BackButton fallbackPath="/elearning" label="Back" />
-          <h1 className="text-3xl font-bold text-[#673AB7]">Interactive Manuals</h1>
+          <h1 className="text-3xl font-bold text-[#673AB7]">Course Materials</h1>
         </div>
 
         {!isAuthenticated && (

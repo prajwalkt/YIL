@@ -20,8 +20,8 @@ export function hasMaliciousPayload(input: string): boolean {
   if (/<[^>]+(onerror|onload|javascript:)/i.test(input)) return true;
   if (/<\/?(h1|h2|h3|h4|h5|h6|b|i|u|strong|em|div|span|p|a|img|table|tr|td|th|ul|ol|li)\b[^>]*>/i.test(input)) return true;
   
-  // Command Injection patterns
-  if (/(&&|\|\||;|`|\bdir\b\s*$)/i.test(input)) return true;
+  // Command Injection patterns (removed && to allow & in course names)
+  if (/(\|\||;|`|\bdir\b\s*$)/i.test(input)) return true;
   
   return false;
 }
@@ -44,8 +44,8 @@ export function sanitizeHtml(input: string): string {
  */
 export function sanitizeCommand(input: string): string {
   if (!input) return input;
-  // Strip shell metacharacters: ; & | ` $ ( ) > < \n
-  return input.replace(/[;&|`$()>\\<\n]/g, '').trim();
+  // Strip shell metacharacters: ; | ` $ \n (Ampersand is removed to allow course names like 'Fundamentals & Engineering')
+  return input.replace(/[;|`$\n]/g, '').trim();
 }
 
 /**

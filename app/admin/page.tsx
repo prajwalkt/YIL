@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  LayoutDashboard, Users, BookOpen, Calendar, MessageSquare, ClipboardList,
+  LayoutDashboard, Users, BookOpen, Calendar as CalendarIcon, MessageSquare, ClipboardList,
   Award, Star, Bell, HelpCircle, BarChart2, DollarSign, FileText, Bot,
   LogOut, Search, Plus, Edit, Trash2, CheckCircle, XCircle, Eye, Filter,
   TrendingUp, TrendingDown, RefreshCw, Download, Upload, Send, ChevronDown,
@@ -11,6 +11,11 @@ import {
 import { useRouter } from 'next/navigation';
 import BackButton from '../../components/BackButton';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Calendar, momentLocalizer } from 'react-big-calendar';
+import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+const localizer = momentLocalizer(moment);
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface AuthUser { userId: number; email: string; role: string; firstName: string; lastName: string; }
@@ -21,7 +26,7 @@ const NAV_ITEMS = [
   { id: 'users', label: 'User Management', icon: <Users size={18} />, roles: ['ADMIN'] },
   { id: 'trainers', label: 'Trainers', icon: <User size={18} />, roles: ['ADMIN','TM'] },
   { id: 'courses', label: 'Courses', icon: <BookOpen size={18} />, roles: ['ADMIN','TM'] },
-  { id: 'calendar', label: 'Training Calendar', icon: <Calendar size={18} />, roles: ['ADMIN','TM','TRAINER'] },
+  { id: 'calendar', label: 'Training Calendar', icon: <CalendarIcon size={18} />, roles: ['ADMIN','TM','TRAINER'] },
   { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={18} />, roles: ['ADMIN','TM','TRAINER'] },
   { id: 'assessments', label: 'Assessments', icon: <ClipboardList size={18} />, roles: ['ADMIN','TM'] },
   { id: 'certificates', label: 'Certificates', icon: <Award size={18} />, roles: ['ADMIN','TM'] },
@@ -155,7 +160,7 @@ function DashboardTab({ stats, recentRegs, auditLogs }: any) {
     { label: 'Total Registrations', value: stats?.TotalRegistrations ?? '–', icon: <ClipboardList size={18} className="text-green-600"/>, color: 'bg-green-50', trend: '+8%', trendUp: true },
     { label: 'Running Batches', value: stats?.RunningBatches ?? '–', icon: <Activity size={18} className="text-pink-600"/>, color: 'bg-pink-50' },
     { label: 'Completed Batches', value: stats?.CompletedBatches ?? '–', icon: <CheckCircle size={18} className="text-emerald-600"/>, color: 'bg-emerald-50' },
-    { label: 'Upcoming Trainings', value: stats?.UpcomingTrainings ?? '–', icon: <Calendar size={18} className="text-indigo-600"/>, color: 'bg-indigo-50' },
+    { label: 'Upcoming Trainings', value: stats?.UpcomingTrainings ?? '–', icon: <CalendarIcon size={18} className="text-indigo-600"/>, color: 'bg-indigo-50' },
     { label: 'Certificates Issued', value: stats?.CertificatesIssued ?? '–', icon: <Award size={18} className="text-purple-600"/>, color: 'bg-purple-50', trend: '+18%', trendUp: true },
     { label: 'Pending Payments', value: stats?.PendingPayments ?? '–', icon: <DollarSign size={18} className="text-red-600"/>, color: 'bg-red-50' },
     { label: 'Total Trainers', value: stats?.TotalTrainers ?? '–', icon: <User size={18} className="text-teal-600"/>, color: 'bg-teal-50' },
@@ -593,63 +598,33 @@ function CalendarTab() {
           <Plus size={16}/> Schedule Training
         </button>
       </div>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-6">
-        <h3 className="font-bold text-gray-800 mb-4">Training Kanban Board (Drag & Drop to Update Status)</h3>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-6 h-[700px]">
         {loading ? <div className="p-12 text-center"><Loader size={24} className="animate-spin mx-auto text-gray-300"/></div> : (
-          <div className="grid grid-cols-3 gap-6">
-            {['OPEN', 'FULL', 'COMPLETED'].map(colStatus => (
-              <div 
-                key={colStatus} 
-                className="bg-gray-50 rounded-xl p-4 border border-gray-100 min-h-[400px]"
-                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                onDrop={async (e) => {
-                  e.preventDefault();
-                  const eventId = e.dataTransfer.getData('eventId');
-                  if (!eventId) return;
-                  // Optimistic update
-                  const targetEvent = events.find(ev => ev.CalendarID.toString() === eventId);
-                  if (targetEvent) {
-                    setEvents(events.map(ev => ev.CalendarID.toString() === eventId ? { ...ev, status_override: colStatus } : ev));
-                    // Optional: hit API to update status or dates in backend
-                    alert(`Moved ${targetEvent.Title} to ${colStatus}`);
-                  }
-                }}
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-black text-gray-700">{colStatus}</h4>
-                  <span className="bg-white px-2 py-1 rounded-lg text-xs font-bold text-gray-500 shadow-sm">
-                    {events.filter(e => (e.status_override || (new Date(e.EndDate) < new Date() ? 'COMPLETED' : (e.MaxParticipants - (e.CurrentEnrolled || 0) <= 0 ? 'FULL' : 'OPEN'))) === colStatus).length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {events
-                    .filter(e => (e.status_override || (new Date(e.EndDate) < new Date() ? 'COMPLETED' : (e.MaxParticipants - (e.CurrentEnrolled || 0) <= 0 ? 'FULL' : 'OPEN'))) === colStatus)
-                    .map(e => (
-                    <div 
-                      key={e.CalendarID} 
-                      draggable
-                      onDragStart={(evt) => {
-                        evt.dataTransfer.setData('eventId', e.CalendarID.toString());
-                        evt.dataTransfer.effectAllowed = 'move';
-                      }}
-                      className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all border-l-4 border-l-blue-500"
-                    >
-                      <h5 className="font-bold text-gray-800 text-sm leading-tight mb-1">{e.Title}</h5>
-                      <p className="text-[10px] font-bold text-blue-500 bg-blue-50 inline-block px-2 py-0.5 rounded-full mb-2 uppercase tracking-widest">{e.TrainingType}</p>
-                      <div className="flex flex-col gap-1 mt-2">
-                        <span className="text-xs text-gray-500 font-medium">Starts: {new Date(e.StartDate).toLocaleDateString()}</span>
-                        <span className="text-xs text-gray-500 font-medium">Ends: {new Date(e.EndDate).toLocaleDateString()}</span>
-                        <div className="w-full bg-gray-100 h-1.5 rounded-full mt-2 overflow-hidden">
-                          <div className="bg-green-500 h-full" style={{ width: `${Math.min(100, ((e.CurrentEnrolled || 0) / e.MaxParticipants) * 100)}%` }}></div>
-                        </div>
-                        <span className="text-[10px] text-gray-400 font-bold text-right">{e.CurrentEnrolled || 0} / {e.MaxParticipants}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <Calendar
+            localizer={localizer}
+            events={events.map(e => ({
+              title: e.Title,
+              start: new Date(e.StartDate),
+              end: new Date(e.EndDate),
+              resource: e
+            }))}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: '100%' }}
+            views={['month', 'week', 'day']}
+            eventPropGetter={(event) => ({
+              style: {
+                backgroundColor: typeColors[event.resource.TrainingType] === 'orange' ? '#f97316' : 
+                                 typeColors[event.resource.TrainingType] === 'blue' ? '#3b82f6' : 
+                                 typeColors[event.resource.TrainingType] === 'green' ? '#22c55e' : '#a855f7',
+                borderRadius: '8px',
+                opacity: 0.9,
+                color: 'white',
+                border: 'none',
+                display: 'block'
+              }
+            })}
+          />
         )}
       </div>
 
@@ -1015,7 +990,7 @@ function ApprovalsTab() {
         {loading ? <div className="p-12 text-center"><Loader size={24} className="animate-spin mx-auto text-gray-300"/></div> : (
           <table className="w-full text-left min-w-[1000px]">
             <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>{['Applicant','Course','Mode','Payment Proof','Status','Date','Actions'].map(h => (
+              <tr>{['Applicant','Course','Mode','Payment Proof','Status','Trainer','Date','Actions'].map(h => (
                 <th key={h} className="px-5 py-3.5 text-xs font-black text-gray-400 uppercase tracking-widest">{h}</th>
               ))}</tr>
             </thead>
@@ -1048,12 +1023,33 @@ function ApprovalsTab() {
                     )}
                   </td>
                   <td className="px-5 py-3.5"><Badge text={r.Status} color={r.Status.includes('APPROVED') ? 'green' : r.Status.includes('REJECTED') ? 'red' : 'orange'}/></td>
-                  <td className="px-5 py-3.5 text-xs text-gray-500">{new Date(r.CreatedAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-3.5 text-sm font-semibold text-gray-700">
+                    {r.TrainerId && trainers.find(t => t.UserID === r.TrainerId) 
+                      ? `${trainers.find(t => t.UserID === r.TrainerId).FirstName} ${trainers.find(t => t.UserID === r.TrainerId).LastName}` 
+                      : <span className="text-gray-400 italic">Unassigned</span>}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {r.FinalStartDate ? (
+                      <div className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded w-fit">
+                        {new Date(r.FinalStartDate).toLocaleDateString()} - {r.FinalEndDate ? new Date(r.FinalEndDate).toLocaleDateString() : 'N/A'}
+                      </div>
+                    ) : r.PreferredStartDate ? (
+                      <div className="text-xs text-gray-500">
+                        {new Date(r.PreferredStartDate).toLocaleDateString()} - {r.PreferredEndDate ? new Date(r.PreferredEndDate).toLocaleDateString() : 'N/A'}
+                      </div>
+                    ) : r.OriginalStartDate ? (
+                      <div className="text-xs text-gray-500">
+                        {new Date(r.OriginalStartDate).toLocaleDateString()} - {r.OriginalEndDate ? new Date(r.OriginalEndDate).toLocaleDateString() : 'N/A'}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">No Dates</span>
+                    )}
+                  </td>
                   <td className="px-5 py-3.5">
                     <div className="flex gap-2">
                       <button onClick={() => setHistoryModal(r)} className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors" title="History"><Activity size={14}/></button>
-                      <button onClick={() => setEditDatesModal({ id: r.Id, origStart: r.OriginalStartDate, origEnd: r.OriginalEndDate, start: r.OriginalStartDate ? new Date(r.OriginalStartDate).toISOString().split('T')[0] : '', end: r.OriginalEndDate ? new Date(r.OriginalEndDate).toISOString().split('T')[0] : '', remarks: r.ApprovalRemarks || '', title: 'Edit Dates' })} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">Edit Dates</button>
-                      <button onClick={() => setRemarksModal({ id: r.Id, action: 'APPROVE', title: 'Approve Registration' })} className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors">Approve</button>
+                      <button onClick={() => setEditDatesModal({ id: r.Id, origStart: r.PreferredStartDate || r.OriginalStartDate, origEnd: r.PreferredEndDate || r.OriginalEndDate, start: r.FinalStartDate ? new Date(r.FinalStartDate).toISOString().split('T')[0] : (r.PreferredStartDate ? new Date(r.PreferredStartDate).toISOString().split('T')[0] : (r.OriginalStartDate ? new Date(r.OriginalStartDate).toISOString().split('T')[0] : '')), end: r.FinalEndDate ? new Date(r.FinalEndDate).toISOString().split('T')[0] : (r.PreferredEndDate ? new Date(r.PreferredEndDate).toISOString().split('T')[0] : (r.OriginalEndDate ? new Date(r.OriginalEndDate).toISOString().split('T')[0] : '')), remarks: r.ApprovalRemarks || r.TMRemarks || '', title: 'Edit Dates' })} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">Edit Dates</button>
+                      <button onClick={() => { setTrainerId(r.TrainerId ? String(r.TrainerId) : ''); setRemarksModal({ id: r.Id, action: 'APPROVE', title: 'Approve Registration' }); }} className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors">Approve</button>
                       <button onClick={() => setRemarksModal({ id: r.Id, action: 'REJECT', title: 'Reject Registration' })} className="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">Reject</button>
                     </div>
                   </td>
@@ -1071,7 +1067,7 @@ function ApprovalsTab() {
             {remarksModal.action === 'APPROVE' && (
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Assign Trainer</label>
-                <select value={trainerId} onChange={e => setTrainerId(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100">
+                <select value={trainerId} onChange={e => setTrainerId(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 ring-blue-100">
                   <option value="">No Trainer Assigned</option>
                   {trainers.map(t => (
                     <option key={t.UserID} value={t.UserID}>{t.FirstName} {t.LastName}</option>
@@ -1081,7 +1077,7 @@ function ApprovalsTab() {
             )}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks (Optional)</label>
-              <textarea value={remarks} onChange={e => setRemarks(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100 h-24" placeholder="Enter any comments..."></textarea>
+              <textarea value={remarks} onChange={e => setRemarks(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 ring-blue-100 h-24" placeholder="Enter any comments..."></textarea>
             </div>
             <div className="flex gap-3">
               <button onClick={() => processApproval(remarksModal.id, remarksModal.action)} className={`flex-1 text-white py-2.5 rounded-xl text-sm font-bold ${remarksModal.action==='APPROVE' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
@@ -1136,16 +1132,16 @@ function ApprovalsTab() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">New Start Date</label>
-                <input type="date" value={editDatesModal.start} onChange={e => setEditDatesModal({...editDatesModal, start: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100" />
+                <input type="date" value={editDatesModal.start} onChange={e => setEditDatesModal({...editDatesModal, start: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 ring-blue-100" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">New End Date</label>
-                <input type="date" value={editDatesModal.end} onChange={e => setEditDatesModal({...editDatesModal, end: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100" />
+                <input type="date" value={editDatesModal.end} onChange={e => setEditDatesModal({...editDatesModal, end: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 ring-blue-100" />
               </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Remarks</label>
-              <textarea value={editDatesModal.remarks} onChange={e => setEditDatesModal({...editDatesModal, remarks: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ring-blue-100 h-20" placeholder="Reason for changing dates..."></textarea>
+              <textarea value={editDatesModal.remarks} onChange={e => setEditDatesModal({...editDatesModal, remarks: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 ring-blue-100 h-20" placeholder="Reason for changing dates..."></textarea>
             </div>
             <div className="flex gap-3 mt-4">
               <button onClick={() => processEditDates(editDatesModal.id, editDatesModal.start, editDatesModal.end, editDatesModal.remarks)} className="flex-1 bg-[#004098] text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700">Save Final Dates</button>
@@ -1208,7 +1204,7 @@ function ManualsTab() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Interactive Manuals</h2>
+          <h2 className="text-2xl font-bold text-gray-800">Course Materials</h2>
           <p className="text-sm text-gray-500">Manage SCORM / PDF interactive training manuals</p>
         </div>
         <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-blue-600/20 flex items-center gap-2 transition-all">
@@ -1707,18 +1703,46 @@ function ELearningTab() {
 
       // Upload file if provided
       if (file) {
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('courseId', form.courseId);
-        fd.append('contentType', form.contentType);
-        const upRes = await fetch('/api/admin/elearning/upload', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token()}` },
-          body: fd,
-        });
-        const upData = await upRes.json();
-        if (!upData.success) { setMsg(upData.message); setUploading(false); return; }
-        filePath = upData.filePath;
+        let presignData: any = null;
+        try {
+          const presignRes = await fetch('/api/admin/elearning/upload/presign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+            body: JSON.stringify({ filename: file.name, contentType: file.type, courseId: form.courseId, fileType: form.contentType })
+          });
+          presignData = await presignRes.json();
+        } catch (e) {
+          console.warn("Could not fetch presigned URL, falling back.", e);
+        }
+
+        if (presignData?.usePresigned && presignData.postData) {
+           // Upload directly to R2
+           const formData = new FormData();
+           Object.entries(presignData.postData.fields).forEach(([key, value]) => formData.append(key, value as string));
+           formData.append('file', file);
+           
+           const s3Res = await fetch(presignData.postData.url, {
+             method: 'POST',
+             body: formData
+           });
+           
+           if (!s3Res.ok) { setMsg('S3 Upload failed'); setUploading(false); return; }
+           filePath = presignData.filePath;
+        } else {
+           // Fallback to existing server upload
+           const fd = new FormData();
+           fd.append('file', file);
+           fd.append('courseId', form.courseId);
+           fd.append('contentType', form.contentType);
+           const upRes = await fetch('/api/admin/elearning/upload', {
+             method: 'POST',
+             headers: { Authorization: `Bearer ${token()}` },
+             body: fd,
+           });
+           const upData = await upRes.json();
+           if (!upData.success) { setMsg(upData.message); setUploading(false); return; }
+           filePath = upData.filePath;
+        }
       }
 
       if (!filePath && !editItem) { setMsg('Please upload a file'); setUploading(false); return; }

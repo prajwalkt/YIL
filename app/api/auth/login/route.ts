@@ -34,32 +34,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Email and password required' }, { status: 400 });
     }
 
-    if (!captchaText) {
-      await auditLog(null, email, 'LOGIN_FAILED', 'AUTH', 'Missing CAPTCHA text', ip, 'FAILURE');
-      return NextResponse.json({ success: false, message: 'Missing security verification. Please complete the CAPTCHA.' }, { status: 403 });
-    }
-
-    if (!captchaToken) {
-      await auditLog(null, email, 'LOGIN_FAILED', 'AUTH', 'Missing or expired CAPTCHA session', ip, 'FAILURE');
-      return NextResponse.json({ success: false, message: 'CAPTCHA session expired. Please load a new image and try again.' }, { status: 403 });
-    }
-
-    try {
-      const JWT_SECRET = process.env.JWT_SECRET || 'yts-lms-dev-only-secret-change-in-production-32chars';
-      const decoded = jwt.verify(captchaToken, JWT_SECRET) as { captcha: string };
-      
-      if (!decoded || !decoded.captcha || decoded.captcha.toLowerCase() !== captchaText.toLowerCase()) {
-        await auditLog(null, email, 'LOGIN_FAILED', 'AUTH', 'Invalid CAPTCHA', ip, 'FAILURE');
-        const errResp = NextResponse.json({ success: false, message: 'Invalid CAPTCHA code. Please try again.' }, { status: 403 });
-        errResp.cookies.delete('captcha_token'); // Prevent reuse
-        return errResp;
-      }
-    } catch (e) {
-      await auditLog(null, email, 'LOGIN_FAILED', 'AUTH', 'Invalid CAPTCHA token signature', ip, 'FAILURE');
-      const errResp = NextResponse.json({ success: false, message: 'Invalid or expired CAPTCHA session. Please reload.' }, { status: 403 });
-      errResp.cookies.delete('captcha_token');
-      return errResp;
-    }
+    // --- CAPTCHA BYPASSED AS REQUESTED ---
+    // if (!captchaText) { ... }
+    // if (!captchaToken) { ... }
+    // jwt.verify(...)
 
 
     const pool = await getConnection();

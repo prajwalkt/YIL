@@ -84,8 +84,18 @@ export async function POST(request: NextRequest) {
     }
 
     const safeFilename = generateSafeFilename(file.name, 'manual');
+    let dbPath = `/manuals_repo/${safeFilename}`;
     
-    // Create public directory for manuals (SCORM or PDF)
+    // --- SUPABASE UPLOAD ---
+    try {
+      const r2Key = `manuals_repo/${safeFilename}`;
+      const { uploadToSupabase } = await import('../../../library/supabaseStorage');
+      await uploadToSupabase(r2Key, buffer, file.type);
+    } catch (e) {
+      console.warn("Supabase Upload failed for manual, using local.", e);
+    }
+
+    // --- LOCAL FS UPLOAD (Fallback/Option 1) ---
     const uploadDir = path.join(process.cwd(), 'public', 'manuals_repo');
     try {
       await fs.access(uploadDir);
@@ -95,7 +105,6 @@ export async function POST(request: NextRequest) {
 
     const destPath = path.join(uploadDir, safeFilename);
     await fs.writeFile(destPath, buffer);
-    const dbPath = `/manuals_repo/${safeFilename}`;
 
     await pool.request()
       .input("CourseID", courseId ? Number(courseId) : null)

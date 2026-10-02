@@ -41,32 +41,10 @@ export async function POST(req: NextRequest) {
     if (action === 'REJECT') newStatus = 'REJECTED';
 
     if (action === 'MODIFY' && finalStartDate && finalEndDate) {
-      const regQuery = await pool.request()
-        .input('Id', registrationId)
-        .query(`SELECT Course, TrainingMode FROM Registrations WHERE Id = @Id`);
-        
-      if (regQuery.recordset.length > 0) {
-        const reg = regQuery.recordset[0];
-        if (reg.TrainingMode !== "E-Learning (Self-Paced)") {
-          const { calculateWorkingDays } = await import("../../../library/dateUtils");
-          const workingDays = calculateWorkingDays(finalStartDate, finalEndDate);
-          
-          const courseCheck = await pool.request()
-            .input("CourseTitle", reg.Course)
-            .query(`SELECT DurationDays FROM LMS_Courses WHERE Title = @CourseTitle AND Status = 'ACTIVE'`);
-            
-          if (courseCheck.recordset.length > 0) {
-            const requiredDays = courseCheck.recordset[0].DurationDays;
-            if (requiredDays && workingDays !== requiredDays) {
-              return NextResponse.json({ 
-                success: false, 
-                message: `Selected dates do not match the course duration. This course requires ${requiredDays} training days (Mon-Fri).` 
-              }, { status: 400 });
-            }
-          }
-        }
-      }
+      // Allow flexible date allocation, bypassing strict duration check
     }
+
+
 
     const updateResult = await pool.request()
       .input('Id', registrationId)
@@ -89,6 +67,17 @@ export async function POST(req: NextRequest) {
       
     if (updateResult.rowsAffected[0] === 0) {
       return NextResponse.json({ success: false, message: 'Registration not found or no changes made' }, { status: 404 });
+    }
+
+    if (action === 'APPROVE' || action === 'MODIFY') {
+      const regRes = await pool.request().input('Id', registrationId).query(`SELECT SelectedSlotID FROM Registrations WHERE Id = @Id`);
+      if (regRes.recordset.length > 0 && regRes.recordset[0].SelectedSlotID) {
+        await pool.request()
+          .input('SlotID', regRes.recordset[0].SelectedSlotID)
+          .input('FinalStart', finalStartDate)
+          .input('FinalEnd', finalEndDate)
+          .query(`UPDATE TrainingCalendar SET StartDate = @FinalStart, EndDate = @FinalEnd WHERE CalendarID = @SlotID`);
+      }
     }
       
     // Create new calendar entry if approved and none exists (simplified logic for now)

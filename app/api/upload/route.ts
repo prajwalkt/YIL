@@ -41,48 +41,34 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const safeName = generateSafeFilename(file.name, `Receipt_${userName}`);
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/drive'],
-    });
-
-    const drive = google.drive({ version: 'v3', auth });
-
-    // --- STEP 1: UPLOAD & ATTACH TO PARENT ---
-    const response = await drive.files.create({
-      requestBody: {
-        name: safeName,
-        parents: ['1xsCzvVY6aO88ILGmo5hdAxI2CtbGbFUB'], 
-      },
-      media: {
-        mimeType: file.type,
-        body: Readable.from(buffer),
-      },
-      // This allows the "Guest" Service Account to use your Folder's space
-      supportsAllDrives: true, 
-      useContentInsufficientQuota: true, 
-      fields: 'id, owners',
-    } as any);
-
-    const fileId = response.data.id;
-
-    // --- STEP 2: IMMEDIATELY GRANT YOU PERMISSION ---
-    // This ensures you can see and manage the file even if the robot "owns" it
-    const grantEmail = process.env.UPLOAD_GRANT_EMAIL;
-    if (grantEmail) {
-      await drive.permissions.create({
-        fileId: fileId!,
-        requestBody: {
-          role: 'writer',
-          type: 'user',
-          emailAddress: grantEmail,
-        },
-        supportsAllDrives: true,
-      });
+    // --- SUPABASE FILE SYSTEM UPLOAD ---
+    let useSupabase = true;
+    let r2Key = `uploads/${safeName}`; // Keep legacy prefix for compatibility
+    try {
+      const { uploadToSupabase } = await import('../../library/supabaseStorage');
+      await uploadToSupabase(r2Key, buffer, file.type);
+    } catch (r2Error) {
+      console.warn("Supabase Upload skipped or failed, using local only.", r2Error);
+      useSupabase = false;
     }
+
+    // --- LOCAL FILE SYSTEM UPLOAD FOR OPTION 1 / REFERENCE ---
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    // Ensure public/uploads directory exists
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    // Write file locally
+    const filePath = path.join(uploadDir, safeName);
+    fs.writeFileSync(filePath, buffer);
+    
+    // The "fileId" can just be the relative URL for the browser to access
+    // This allows it to work from the local 'public' folder transparently during migration
+    const fileId = `/uploads/${safeName}`;
 
     return NextResponse.json({ success: true, fileId });
 

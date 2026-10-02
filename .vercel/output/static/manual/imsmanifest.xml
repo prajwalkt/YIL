@@ -1,0 +1,143 @@
+<?xml version="1.0" ?>
+<manifest identifier="w-xYTkX_yiVKWeaHGdEnJP0VYf_-XLXOYjOuA6ki" version="1"
+  xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd
+                      http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+    <adlcp:location>metadata.xml</adlcp:location>
+  </metadata>
+  <organizations default="articulate_rise">
+      <organization identifier="articulate_rise">
+      <title>ProSafe-RS Safety System Engineering: Configuration, Logic Design, and Compliance</title>
+      <item identifier="i1" identifierref="r1" isvisible="true">
+        <title>ProSafe-RS Safety System Engineering: Configuration, Logic Design, and Compliance</title>
+        <adlcp:datafromlms>datafromlms</adlcp:datafromlms>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="r1" type="webcontent" adlcp:scormtype="sco" href="scormdriver/indexAPI.html">
+      <!-- SCORMDRIVER STUFF -->
+      <file href="scormdriver/indexAPI.html" />
+      <file href="scormdriver/preloadIntegrity.js" />
+      <file href="scormdriver/driverOptions.js" />
+      <file href="scormdriver/AICCComm.html" />
+      <file href="scormdriver/auto-scripts/AutoBookmark.js" />
+      <file href="scormdriver/auto-scripts/AutoCompleteSCO.js" />
+      <file href="scormdriver/auto-scripts/CourseExit.js" />
+      <file href="scormdriver/blank.html" />
+      <file href="scormdriver/goodbye.html" />
+      <file href="scormdriver/scormdriver.js" />
+      <file href="scormdriver/browsersniff.js" />
+
+      <!-- RUNTIME COMMON STUFF -->
+      <file href="scormcontent/index.html" />
+
+      
+        <file href="scormcontent/lib/lzwcompress.js"/>
+      
+
+      <!-- FRONTEND BUNDLE ASSETS -->
+      <file href="scormcontent/lib/rise/e10931b8.js" />
+<file href="scormcontent/lib/rise/acb578a7.js" />
+<file href="scormcontent/lib/rise/c5f885ce.css" />
+<file href="scormcontent/lib/rise/9df02f7b.js" />
+<file href="scormcontent/lib/rise/2e0702fd.css" />
+<file href="scormcontent/lib/rise/0ebe1ee1.js" />
+<file href="scormcontent/lib/rise/9aede266.ttf" />
+<file href="scormcontent/lib/rise/bff47411.woff" />
+<file href="scormcontent/lib/rise/53e38ae4.js" />
+<file href="scormcontent/lib/rise/909c140b.js" />
+<file href="scormcontent/lib/rise/e220a064.js" />
+<file href="scormcontent/lib/rise/4f596277.js" />
+<file href="scormcontent/lib/rise/3125981b.js" />
+<file href="scormcontent/lib/rise/a9538796.js" />
+<file href="scormcontent/lib/rise/a71d8801.js" />
+<file href="scormcontent/lib/rise/26edf2b4.js" />
+<file href="scormcontent/lib/rise/8716f7be.js" />
+<file href="scormcontent/lib/rise/a25c4582.js" />
+<file href="scormcontent/lib/rise/b4fdee4f.js" />
+<file href="scormcontent/lib/rise/7d5fe321.js" />
+<file href="scormcontent/lib/rise/682f02bd.js" />
+<file href="scormcontent/lib/rise/2b9faa96.js" />
+<file href="scormcontent/lib/rise/ff9718bb.js" />
+<file href="scormcontent/lib/rise/f1f77d3c.js" />
+<file href="scormcontent/lib/rise/b9956f1f.js" />
+<file href="scormcontent/lib/rise/eb06fbc9.js" />
+<file href="scormcontent/lib/learn_dist/entry.js" />
+<file href="scormcontent/lib/learn_dist/9b1f8619.js" />
+<file href="scormcontent/lib/learn_dist/b954bbcb.css" />
+<file href="scormcontent/lib/learn_dist/1ae263f0.js" />
+<file href="scormcontent/lib/mondrian/entry.js" />
+<file href="scormcontent/lib/mondrian/03334748.js" />
+<file href="scormcontent/lib/mondrian/4d08ddb4.js" />
+<file href="scormcontent/lib/mondrian/6ef08bd3.js" />
+<file href="scormcontent/lib/mondrian/3868877e.js" />
+<file href="scormcontent/lib/mondrian/5d56aa22.js" />
+<file href="scormcontent/lib/sandbox/sandbox.html" />
+<file href="scormcontent/lib/sandbox/c77685df.js" />
+<file href="scormcontent/lib/sandbox/4adfab46.css" />
+
+
+      <!-- RUNTIME CONTENT STUFF -->
+      <file href="scormcontent/lib/fonts/Lato2-Regular.woff" />
+<file href="scormcontent/lib/fonts/Lato2-Light.woff" />
+<file href="scormcontent/lib/fonts/Lato2-Italic.woff" />
+<file href="scormcontent/lib/fonts/Lato2-Bold.woff" />
+<file href="scormcontent/lib/fonts/Lato2-Black.woff" />
+<file href="scormcontent/lib/fonts/Merriweather-Black.woff" />
+<file href="scormcontent/lib/fonts/Merriweather-Italic.woff" />
+<file href="scormcontent/lib/fonts/Merriweather-Bold.woff" />
+<file href="scormcontent/lib/fonts/Merriweather-Regular.woff" />
+<file href="scormcontent/lib/fonts/Merriweather-Light.woff" />
+<file href="scormcontent/assets/small.png" />
+<file href="scormcontent/assets/MIS5gN8hcl_hVp0x.jpg" />
+<file href="scormcontent/assets/ai-generated-image.jpg" />
+<file href="scormcontent/assets/c9uLJU/ai-generated-image.jpg" />
+<file href="scormcontent/assets/Coastline.mp4" />
+<file href="scormcontent/assets/Coastline.png" />
+<file href="scormcontent/assets/u4fZSM/ai-generated-image.jpg" />
+<file href="scormcontent/assets/B4cUqQ/ai-generated-image.jpg" />
+<file href="scormcontent/assets/B-azAE/ai-generated-image.jpg" />
+<file href="scormcontent/assets/bKBYQS/ai-generated-image.jpg" />
+<file href="scormcontent/assets/GUhwPB/ai-generated-image.jpg" />
+<file href="scormcontent/assets/gflQT5/ai-generated-image.jpg" />
+<file href="scormcontent/assets/hcOc_k/ai-generated-image.jpg" />
+<file href="scormcontent/assets/33QCSb/ai-generated-image.jpg" />
+<file href="scormcontent/assets/iLNo0K/ai-generated-image.jpg" />
+<file href="scormcontent/assets/t00mf1/ai-generated-image.jpg" />
+<file href="scormcontent/assets/olfZdc/ai-generated-image.jpg" />
+<file href="scormcontent/assets/3XneR7/ai-generated-image.jpg" />
+<file href="scormcontent/assets/Y14xSQ/ai-generated-image.jpg" />
+<file href="scormcontent/assets/hB38z4/ai-generated-image.jpg" />
+<file href="scormcontent/assets/oan3Py/beach_rocks.jpg" />
+<file href="scormcontent/assets/sx-UPp/sky_mountains.jpg" />
+<file href="scormcontent/assets/ytByp2/ai-generated-image.jpg" />
+<file href="scormcontent/assets/CDA_YC/ai-generated-image.jpg" />
+<file href="scormcontent/assets/MhkXmr/ai-generated-image.jpg" />
+<file href="scormcontent/assets/--ZCpL/ai-generated-image.jpg" />
+<file href="scormcontent/assets/mntj_8/ai-generated-image.jpg" />
+<file href="scormcontent/assets/79Hmnx/ai-generated-image.jpg" />
+<file href="scormcontent/assets/QlfLBo/ai-generated-image.jpg" />
+<file href="scormcontent/assets/ji-q9p/ai-generated-image.jpg" />
+<file href="scormcontent/assets/dEqg-e/ai-generated-image.jpg" />
+<file href="scormcontent/assets/8m2rjv/ai-generated-image.jpg" />
+<file href="scormcontent/assets/TL1NJg/ai-generated-image.jpg" />
+<file href="scormcontent/assets/wSwCaN/ai-generated-image.jpg" />
+<file href="scormcontent/assets/iCm3Oo/ai-generated-image.jpg" />
+<file href="scormcontent/assets/RcLuzB/ai-generated-image.jpg" />
+<file href="scormcontent/assets/ZnwQyX/ai-generated-image.jpg" />
+<file href="scormcontent/assets/sR3uLG/ai-generated-image.jpg" />
+<file href="scormcontent/assets/6b-9hh/ai-generated-image.jpg" />
+<file href="scormcontent/assets/-12JS3/ai-generated-image.jpg" />
+<file href="scormcontent/assets/Jse82I/ai-generated-image.jpg" />
+<file href="scormcontent/assets/Wo6GM4/ai-generated-image.jpg" />
+<file href="scormcontent/assets/nSx47U/ai-generated-image.jpg" />
+
+    </resource>
+  </resources>
+</manifest>

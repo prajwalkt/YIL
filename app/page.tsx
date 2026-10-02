@@ -11,6 +11,7 @@ import RegistrationForm from "../components/RegistrationForm";
 import BackButton from "../components/BackButton";
 import PasswordPolicy from "./components/PasswordPolicy";
 import DynamicCalendar from "../components/DynamicCalendar";
+import CinematicIntro from "../components/CinematicIntro";
 
 // --- Interfaces ---
 interface Course {
@@ -247,6 +248,9 @@ export default function YTSProject() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 relative">
       
+      {/* 3D CINEMATIC INTRO EXPERIENCE */}
+      <CinematicIntro />
+      
       {/* REGISTRATION & UPLOAD MODAL */}
       {isRegistering && (
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-[#004098]/90 backdrop-blur-md p-4 animate-in fade-in">
@@ -347,25 +351,28 @@ export default function YTSProject() {
         </div>
       )}
 
-      <header className="w-full h-32 relative flex items-center justify-end px-10 text-white overflow-hidden shadow-lg"
-        style={{ backgroundImage: `url('${getDriveImageUrl("1-bOd5_sYhjMP5_BsZNDQHkFbxcmXHsOK")}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-        <div className="absolute inset-0 bg-[#004098]/10"></div>
+      {/* SMOOTH TRANSITION FROM DARK INTRO TO LIGHT LMS */}
+      <div className="w-full h-48 bg-gradient-to-b from-zinc-950 via-slate-800 to-slate-50" />
+
+      <header className="w-full h-40 relative flex items-center justify-end px-10 text-white overflow-hidden shadow-lg"
+        style={{ backgroundImage: `url('/images/banner_v2.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className="absolute inset-0 bg-[#004098]/20"></div>
       </header>
 
       <nav className="bg-slate-100 border-b sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 flex items-center h-16 overflow-x-auto lg:overflow-visible no-scrollbar">
-          <button onClick={() => setActiveTab("Introduction")} className={`h-full px-6 text-sm font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Introduction" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Introduction</button>
+          <button onClick={() => setActiveTab("Introduction")} className={`h-full px-6 text-base md:text-lg font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Introduction" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Introduction</button>
           
           <div className="relative h-full" onMouseEnter={() => setIsHoveringCourses(true)} onMouseLeave={() => setIsHoveringCourses(false)}>
-            <button className={`h-full px-6 text-sm font-bold transition-all border-b-4 flex items-center gap-2 whitespace-nowrap ${isTrainingActive ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Training Courses <ChevronDown size={14} /></button>
+            <button className={`h-full px-6 text-base md:text-lg font-bold transition-all border-b-4 flex items-center gap-2 whitespace-nowrap ${isTrainingActive ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Training Courses <ChevronDown size={16} /></button>
             {isHoveringCourses && (
-              <div className="absolute top-full left-0 w-64 bg-white shadow-xl border border-slate-100 py-2 z-50 rounded-b-xl">
+              <div className="absolute top-full left-0 w-72 bg-white shadow-xl border border-slate-100 py-2 z-50 rounded-b-xl">
                 {["Offline Training", "Online Training", "Site Training", "E-learning Course"].map((option) => (
-                  <button key={option} onClick={() => { setActiveTab(option); setIsHoveringCourses(false); }} className="w-full text-left px-6 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-[#004098] flex items-center gap-3">
-                    {option === "Offline Training" && <BookOpen size={16} />} 
-                    {option === "Online Training" && <Video size={16} />} 
-                    {option === "Site Training" && <Building2 size={16} />} 
-                    {option === "E-learning Course" && <MonitorPlay size={16} />} 
+                  <button key={option} onClick={() => { setActiveTab(option); setIsHoveringCourses(false); }} className="w-full text-left px-6 py-4 text-base font-bold text-slate-600 hover:bg-slate-50 hover:text-[#004098] flex items-center gap-3">
+                    {option === "Offline Training" && <BookOpen size={18} />} 
+                    {option === "Online Training" && <Video size={18} />} 
+                    {option === "Site Training" && <Building2 size={18} />} 
+                    {option === "E-learning Course" && <MonitorPlay size={18} />} 
                     {option}
                   </button>
                 ))}
@@ -373,11 +380,11 @@ export default function YTSProject() {
             )}
           </div>
 
-          <button onClick={() => setActiveTab("Bangalore Training Centre")} className={`h-full px-6 text-sm font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Bangalore Training Centre" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Bangalore Training Centre</button>
+          <button onClick={() => setActiveTab("Bangalore Training Centre")} className={`h-full px-6 text-base md:text-lg font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Bangalore Training Centre" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Bangalore Training Centre</button>
           
-          <button onClick={() => setActiveTab("Training Calendar")} className={`h-full px-6 text-sm font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Training Calendar" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Training Calendar</button>
+          <button onClick={() => setActiveTab("Training Calendar")} className={`h-full px-6 text-base md:text-lg font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Training Calendar" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Training Calendar</button>
           
-          <button onClick={() => setActiveTab("Contact Us")} className={`h-full px-6 text-sm font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Contact Us" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Contact Us</button>
+          <button onClick={() => setActiveTab("Contact Us")} className={`h-full px-6 text-base md:text-lg font-bold transition-all border-b-4 flex items-center whitespace-nowrap ${activeTab === "Contact Us" ? "border-orange-500 bg-white text-[#004098]" : "border-transparent text-slate-500 hover:text-[#004098]"}`}>Contact Us</button>
         </div>
       </nav>
 
@@ -385,8 +392,8 @@ export default function YTSProject() {
         {activeTab === "Introduction" && (
           <div className="animate-in fade-in space-y-12 text-slate-700">
             <div className="space-y-6">
-              <h1 className="text-3xl md:text-4xl font-bold text-[#004098]">Technical Training School</h1>
-              <div className="text-lg max-w-5xl leading-relaxed space-y-6">
+              <h1 className="text-4xl md:text-5xl font-bold text-[#004098]">Technical Training School</h1>
+              <div className="text-xl max-w-5xl leading-relaxed space-y-6">
                 <p>The Technical School offers a wide range of training courses covering <strong>Plant instruments, Communication protocols, Cyber Security, Distributed Control System, PLC, NCS etc.</strong> with complete hands-on practise.</p>
                 <p>We provide customized training for you based on your requirement.</p>
                 <p>The Training delivery is incorporated using latest methodologies. Making use of <strong>RDP protocol, Cloud</strong> and other enabling technologies.</p>
@@ -428,7 +435,7 @@ export default function YTSProject() {
 
         {activeTab === "Offline Training" && (
           <div className="animate-in fade-in space-y-8">
-            <h2 className="text-2xl md:text-3xl font-light text-[#004098]">Offline Training Programs</h2>
+            <h2 className="text-3xl md:text-4xl font-light text-[#004098]">Offline Training Programs</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {baseCourses.map((course) => (
                 <div key={course.id} className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm flex flex-col group hover:shadow-lg transition-all">
@@ -467,7 +474,7 @@ export default function YTSProject() {
 
         {activeTab === "Online Training" && (
           <div className="animate-in fade-in space-y-8 max-w-5xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-light text-[#004098]">Online VILT Programs</h2>
+            <h2 className="text-3xl md:text-4xl font-light text-[#004098]">Online VILT Programs</h2>
             <div className="space-y-4">
               {onlineCourses.map((course) => (
                 <div key={course.id} className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 hover:border-blue-300 hover:shadow-xl transition-all group relative overflow-hidden">
@@ -503,7 +510,7 @@ export default function YTSProject() {
         )}
         {activeTab === "E-learning Course" && (
           <div className="animate-in fade-in space-y-8 max-w-5xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-light text-[#004098]">E-Learning Courses</h2>
+            <h2 className="text-3xl md:text-4xl font-light text-[#004098]">E-Learning Courses</h2>
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-3xl p-6 shadow-sm mb-6 flex items-start gap-4">
               <div className="bg-white p-3 rounded-xl shadow-sm text-blue-600 shrink-0">
                 <MonitorPlay size={24} />
@@ -562,7 +569,7 @@ export default function YTSProject() {
 
         {activeTab === "Site Training" && (
           <div className="animate-in fade-in space-y-8 max-w-6xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-light text-[#004098]">Site Training Programs</h2>
+            <h2 className="text-3xl md:text-4xl font-light text-[#004098]">Site Training Programs</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="md:col-span-2 bg-[#004098] p-8 rounded-3xl text-white shadow-lg flex flex-col justify-center relative overflow-hidden">
@@ -628,7 +635,7 @@ export default function YTSProject() {
         {activeTab === "Bangalore Training Centre" && (
           <div className="animate-in fade-in space-y-12">
             <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-              <h1 className="text-3xl md:text-4xl font-light text-[#004098]">Bangalore Training Centre</h1>
+              <h1 className="text-4xl md:text-5xl font-light text-[#004098]">Bangalore Training Centre</h1>
               <div className="bg-[#004098] text-white px-6 py-4 rounded-2xl flex items-center gap-4 shadow-lg w-full md:w-auto">
                 <MapPin className="text-orange-400" />
                 <div className="text-xs uppercase font-black tracking-widest leading-tight">Electronic City<br/>Phase 1, Bangalore</div>
@@ -661,12 +668,12 @@ export default function YTSProject() {
           <div className="animate-in fade-in space-y-10 max-w-6xl mx-auto">
             <div className="bg-slate-50 rounded-3xl overflow-hidden border border-slate-200 shadow-sm flex flex-col md:flex-row min-h-[400px]">
               <div className="md:w-5/12 relative bg-slate-200 h-64 md:h-auto">
-                <img src={getDriveImageUrl("1kObpKgixyg2wHwlygdJeGoMaBnSyPBGr")} alt="Office" className="w-full h-full object-cover" />
+                <img src="/images/office_v2.jpg" alt="Office" className="w-full h-full object-cover" />
               </div>
               <div className="md:w-7/12 p-8 md:p-12 flex flex-col justify-center space-y-6">
-                <h2 className="text-2xl md:text-3xl font-bold text-[#004098]">Get in Touch</h2>
-                <p className="text-slate-600 text-sm leading-relaxed">For custom bulk training inquiries, institutional scheduling, or physical lab visits, connect directly with our coordination office.</p>
-                <div className="space-y-4">
+                <h2 className="text-3xl md:text-4xl font-bold text-[#004098]">Get in Touch</h2>
+                <p className="text-slate-600 text-lg leading-relaxed">For custom bulk training inquiries, institutional scheduling, or physical lab visits, connect directly with our coordination office.</p>
+                <div className="space-y-4 text-lg">
                   <div className="flex items-center gap-4 text-slate-700 font-semibold"><Mail size={20} className="text-[#004098]"/> YIL-YTS@yokogawa.com</div>
                   <div className="flex items-center gap-4 text-slate-700 font-semibold"><Phone size={20} className="text-[#004098]"/> +91-80-41586000</div>
                 </div>

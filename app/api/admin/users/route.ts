@@ -6,7 +6,7 @@ import { checkRateLimit, getClientIP, RateLimits } from '../../../library/rateLi
 
 export async function GET(request: NextRequest) {
   const user = getUserFromRequest(request);
-  if (!requireRole(user, 'ADMIN')) return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 });
+  if (!requireRole(user, 'ADMIN') && !requireRole(user, 'TM')) return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 });
 
   try {
     const pool = await getConnection();
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     let query = `SELECT UserID, Email, Role, FirstName, LastName, Phone, Organization, Country, IsActive, IsApproved, CreatedAt, LastLogin FROM LMS_Users WHERE 1=1`;
     const inputs: Record<string, string> = {};
 
-    if (role) { query += ` AND Role = @Role`; inputs['Role'] = role; }
+    if (role) { query += ` AND Role = @Role`; inputs['Role'] = role.toUpperCase(); }
     if (search) { query += ` AND (Email LIKE @Search OR FirstName LIKE @Search OR LastName LIKE @Search)`; inputs['Search'] = `%${search}%`; }
     query += ` ORDER BY CreatedAt DESC`;
 

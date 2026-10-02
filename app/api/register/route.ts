@@ -12,10 +12,12 @@ export async function GET() {
         Title as name, 
         Code as code, 
         COALESCE(DurationDays, 3) as days, 
-        COALESCE(AgendaPDFPath, '#') as agendaPath 
+        AgendaPDFPath as agendaPath 
       FROM LMS_Courses 
       WHERE Status = 'ACTIVE' 
-      ORDER BY Title ASC
+      ORDER BY 
+        CASE WHEN CourseID = 3 THEN 0 ELSE 1 END ASC,
+        Title ASC
     `);
     const courses = result.recordset;
     return NextResponse.json({ success: true, courses });
@@ -180,6 +182,28 @@ export async function POST(request: NextRequest) {
       `);
 
     const newRegId = result.recordset[0]?.Id;
+
+    const { sendMultiChannelNotification } = await import('../../library/notificationService');
+    const htmlBody = `
+      <h3>Registration Submitted Successfully</h3>
+      <p>Dear ${name},</p>
+      <p>We have successfully received your registration for <strong>${course}</strong> (${trainingMode}).</p>
+      <p>Your registration ID is <strong>${newRegId}</strong>.</p>
+      <p>Our team will review your application and you will be notified once it is approved.</p>
+    `;
+    const textBody = `Hi ${name}, we have received your registration for ${course}. Reg ID: ${newRegId}. You will be notified upon approval.`;
+
+    await sendMultiChannelNotification({
+      userId: null,
+      registrationId: newRegId,
+      email: email,
+      phone: phone || undefined,
+      type: 'REGISTRATION_SUBMITTED',
+      subject: 'Registration Submitted - YTS',
+      html: htmlBody,
+      text: textBody,
+      recipientName: name,
+    });
 
     return NextResponse.json({
       success: true,

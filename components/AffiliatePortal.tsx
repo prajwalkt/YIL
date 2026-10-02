@@ -146,7 +146,9 @@ export default function AffiliatePortal() {
                         <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">{e.Mode}</span>
                       </div>
                       
-                      <h4 className="text-xl font-bold text-gray-800 mb-2 leading-tight">{e.CourseTitle}</h4>
+                      <a href={`/student/course/${e.EnrollmentID}`} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-fuchsia-600 block mb-2">
+                        <h4 className="text-xl font-bold text-gray-800 leading-tight">{e.CourseTitle}</h4>
+                      </a>
                       
                       {e.DateApprovalStatus === 'PENDING' ? (
                         <p className="text-sm text-orange-500 mb-6 flex items-center gap-2 font-bold">
@@ -174,8 +176,13 @@ export default function AffiliatePortal() {
                           <span>Progress</span>
                           <span className="text-fuchsia-600">{e.ComputedProgress ?? e.ProgressPercent ?? (e.Status === 'COMPLETED' ? 100 : 0)}%</span>
                         </div>
-                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
                           <div className={`h-full transition-all ${e.Status === 'COMPLETED' ? 'bg-green-500' : 'bg-gradient-to-r from-fuchsia-500 to-pink-500'}`} style={{ width: `${e.ComputedProgress ?? e.ProgressPercent ?? (e.Status === 'COMPLETED' ? 100 : 0)}%` }}></div>
+                        </div>
+
+                        <div className="flex gap-2 flex-wrap justify-center mt-4 pt-4 border-t border-gray-100">
+                          {/* Feedback button omitted here as they use external tabs in affiliate sometimes, but let's just add Material button for now as requested */}
+                          <a href={`/student/manual/${e.EnrollmentID}?url=${encodeURIComponent(e.ManualURL || '/manual/scormcontent/index.html')}`} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 text-sm font-bold text-teal-600 bg-teal-50 px-4 py-2.5 rounded-xl border border-teal-100 hover:bg-teal-100 transition-colors shadow-sm"><BookOpen size={16}/> Material</a>
                         </div>
                       </div>
                     </div>

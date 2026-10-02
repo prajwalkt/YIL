@@ -7,11 +7,13 @@ import { verifyTokenEdge } from './app/library/auth-edge';
 // because the proxy checks via startsWith — first match wins.
 const PROTECTED_ROUTES: Record<string, string[]> = {
   // ── Admin sub-routes (Finance/TM need access to specific endpoints) ──
-  '/api/admin/approvals':   ['ADMIN', 'FINANCE', 'TM'],
-  '/api/admin/reports':     ['ADMIN', 'FINANCE', 'TM'],
-  '/api/admin/calendar':    ['ADMIN', 'TM', 'TRAINER'],
+  '/api/admin/approvals':      ['ADMIN', 'FINANCE', 'TM'],
+  '/api/admin/date-approvals': ['ADMIN', 'FINANCE', 'TM'],
+  '/api/admin/reports':        ['ADMIN', 'FINANCE', 'TM'],
+  '/api/admin/calendar':       ['ADMIN', 'TM', 'TRAINER'],
+  '/api/admin/users':          ['ADMIN', 'TM'],
   // ── Broad admin lock (all other /api/admin/* = ADMIN only) ──
-  '/api/admin':             ['ADMIN'],
+  '/api/admin':                ['ADMIN'],
   // ── Portal APIs ──
   '/api/trainer':           ['TRAINER', 'ADMIN'],
   '/api/student':           ['STUDENT', 'ADMIN', 'AFFILIATE'],
@@ -52,7 +54,7 @@ export default async function middleware(request: NextRequest) {
   // ── Apply Security Headers to all responses ──
   const response = NextResponse.next();
   
-  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()');
@@ -67,8 +69,8 @@ export default async function middleware(request: NextRequest) {
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com",
       "connect-src 'self'",
-      "frame-src 'self'",
-      "frame-ancestors 'none'",
+      "frame-src *",
+      "frame-ancestors 'self'",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
           // Prevent Clickjacking
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'SAMEORIGIN',
           },
           // Prevent MIME sniffing
           {
@@ -60,7 +60,8 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com",
               "connect-src 'self'",
-              "frame-ancestors 'none'",
+              "frame-ancestors 'self'",
+              "frame-src *",
               "base-uri 'self'",
               "form-action 'self'",
               "object-src 'none'",
