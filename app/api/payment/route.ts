@@ -102,6 +102,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Payment error:', error);
-    return NextResponse.json({ success: false, message: 'Payment submission failed. Please try again.' }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Payment submission failed: ' + (error.message || String(error)) }, { status: 500 });
   }
 }
