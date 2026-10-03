@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const requestedPath = searchParams.get('path');
 
-    if (!requestedPath || !requestedPath.startsWith('/private/')) {
+    if (!requestedPath) {
       return new NextResponse(
         JSON.stringify({ success: false, message: 'Invalid or missing file path' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }

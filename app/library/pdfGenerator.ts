@@ -62,13 +62,21 @@ export async function generateRegistrationPDF(data: {
     pdfBytes = await pdfDoc.save();
   }
 
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'registrations');
-  await fs.mkdir(uploadDir, { recursive: true });
-  
+  // 3. Upload to Supabase instead of writing to local FS
   const fileName = `Registration_${userId}_${regId}.pdf`;
-  const filePath = path.join(uploadDir, fileName);
-  await fs.writeFile(filePath, pdfBytes);
+  const r2Key = `registrations/${fileName}`;
+  const { uploadToSupabase } = await import('./supabaseStorage');
+  
+  try {
+    await uploadToSupabase(r2Key, Buffer.from(pdfBytes), 'application/pdf');
+  } catch (e) {
+    console.error("Supabase PDF upload failed:", e);
+  }
 
-  // Return absolute file path so callers can attach it to email
-  return filePath;
+  // Return buffer so callers can attach it to email directly in memory
+  return {
+    buffer: Buffer.from(pdfBytes),
+    filename: fileName,
+    supabasePath: `/registrations/${fileName}`
+  };
 }

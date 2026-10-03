@@ -1,6 +1,6 @@
-import { neon } from '@neondatabase/serverless';
+import { Pool } from '@neondatabase/serverless';
 
-const sql = neon(process.env.NEON_DATABASE_URL!);
+const pool = new Pool({ connectionString: process.env.NEON_DATABASE_URL! });
 
 /**
  * Executes a PostgreSQL query using the Neon Serverless HTTPS connection.
@@ -9,12 +9,11 @@ const sql = neon(process.env.NEON_DATABASE_URL!);
 export async function query(text: string, params?: any[]) {
   const start = Date.now();
   try {
-    const res = await sql.query(text, params);
+    const res = await pool.query(text, params);
     const duration = Date.now() - start;
     if (process.env.NODE_ENV === 'development') {
       console.log('Executed query', { text: text.slice(0, 100), duration, rows: res.rowCount });
     }
-    // Neon serverless sql.query returns an object with { rows, rowCount }
     return res;
   } catch (error: any) {
     console.error('Database Query Error:', error.message, text.slice(0, 100));

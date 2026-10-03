@@ -473,7 +473,7 @@ export async function PUT(request: NextRequest) {
 
       // ── Generate Registration PDF ──
       const { generateRegistrationPDF } = await import('../../../library/pdfGenerator');
-      const pdfPath = await generateRegistrationPDF({
+      const pdfResult = await generateRegistrationPDF({
         regId: reg.Id,
         userId: studentId,
         name: reg.Name,
@@ -499,8 +499,8 @@ export async function PUT(request: NextRequest) {
                  <p>Please find the generated PDF attached.</p>`,
           attachments: [
             {
-              filename: `Registration_${reg.Id}.pdf`,
-              path: pdfPath
+              filename: pdfResult.filename,
+              content: pdfResult.buffer
             }
           ]
         });

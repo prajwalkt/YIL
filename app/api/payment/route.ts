@@ -41,16 +41,9 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await paymentProof.arrayBuffer());
     const safeFilename = generateSafeFilename(paymentProof.name, 'payment_proof_' + registrationId);
-    const uploadDir = path.join(process.cwd(), 'private', 'uploads', 'payments');
     
-    try {
-      await fs.access(uploadDir);
-    } catch {
-      await fs.mkdir(uploadDir, { recursive: true });
-    }
-
-    await fs.writeFile(path.join(uploadDir, safeFilename), buffer);
-    const paymentProofPath = `/private/uploads/payments/${safeFilename}`;
+    const { uploadToSupabase } = await import('../../library/supabaseStorage');
+    const paymentProofPath = await uploadToSupabase(`payments/${safeFilename}`, buffer, paymentProof.type);
 
     const pool = await getConnection();
 

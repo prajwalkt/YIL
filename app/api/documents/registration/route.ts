@@ -48,14 +48,12 @@ export async function POST(request: NextRequest) {
       pdfBytes = await pdfDoc.save();
     }
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'registrations');
-    await fs.mkdir(uploadDir, { recursive: true });
-    
     const fileName = `Registration_${userId}_${regId}.pdf`;
-    const filePath = path.join(uploadDir, fileName);
-    await fs.writeFile(filePath, pdfBytes);
+    const r2Key = `registrations/${fileName}`;
+    const { uploadToSupabase } = await import('../../../library/supabaseStorage');
+    await uploadToSupabase(r2Key, Buffer.from(pdfBytes), 'application/pdf');
 
-    return NextResponse.json({ success: true, pdfUrl: `/uploads/registrations/${fileName}` });
+    return NextResponse.json({ success: true, pdfUrl: `/registrations/${fileName}` });
   } catch (e: any) {
     return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
   }

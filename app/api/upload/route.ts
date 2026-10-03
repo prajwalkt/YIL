@@ -42,33 +42,11 @@ export async function POST(req: NextRequest) {
     const safeName = generateSafeFilename(file.name, `Receipt_${userName}`);
 
     // --- SUPABASE FILE SYSTEM UPLOAD ---
-    let useSupabase = true;
     let r2Key = `uploads/${safeName}`; // Keep legacy prefix for compatibility
-    try {
-      const { uploadToSupabase } = await import('../../library/supabaseStorage');
-      await uploadToSupabase(r2Key, buffer, file.type);
-    } catch (r2Error) {
-      console.warn("Supabase Upload skipped or failed, using local only.", r2Error);
-      useSupabase = false;
-    }
+    const { uploadToSupabase } = await import('../../library/supabaseStorage');
+    await uploadToSupabase(r2Key, buffer, file.type);
 
-    // --- LOCAL FILE SYSTEM UPLOAD FOR OPTION 1 / REFERENCE ---
-    const fs = await import('fs');
-    const path = await import('path');
-    
-    // Ensure public/uploads directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    // Write file locally
-    const filePath = path.join(uploadDir, safeName);
-    fs.writeFileSync(filePath, buffer);
-    
-    // The "fileId" can just be the relative URL for the browser to access
-    // This allows it to work from the local 'public' folder transparently during migration
-    const fileId = `/uploads/${safeName}`;
+    const fileId = `/${r2Key}`;
 
     return NextResponse.json({ success: true, fileId });
 

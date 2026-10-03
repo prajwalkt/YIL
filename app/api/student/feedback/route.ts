@@ -178,13 +178,11 @@ export async function POST(request: NextRequest) {
         pdfBytes = await pdfDoc.save();
       }
 
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'reports');
-      await fs.mkdir(uploadDir, { recursive: true });
-      
       const fileName = `Feedback_${user!.userId}_${feedbackId}.pdf`;
-      const filePath = path.join(uploadDir, fileName);
-      await fs.writeFile(filePath, pdfBytes);
-      pdfUrl = `/uploads/reports/${fileName}`;
+      const r2Key = `reports/${fileName}`;
+      const { uploadToSupabase } = await import('../../../library/supabaseStorage');
+      await uploadToSupabase(r2Key, Buffer.from(pdfBytes), 'application/pdf');
+      pdfUrl = `/reports/${fileName}`;
       // Dispatch Feedback PDF to TM/Admin
       const tmAdmins = await pool.request().query(`SELECT Email FROM LMS_Users WHERE Role IN ('TM', 'ADMIN') AND IsActive = 1`);
       const { sendEmail } = await import('../../../library/email');
@@ -199,7 +197,7 @@ export async function POST(request: NextRequest) {
                    <li>Trainer Score: ${trainerScore}/5</li>
                  </ul>
                  <p>Please find the detailed Feedback Report attached.</p>`,
-          attachments: [{ filename: fileName, path: filePath }]
+          attachments: [{ filename: fileName, content: Buffer.from(pdfBytes) }]
         });
       }
     } catch (pdfErr) {

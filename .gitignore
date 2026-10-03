@@ -23,3 +23,19 @@ Thumbs.db
 
 .vscode/
 .idea/
+
+# DB exports / migration artifacts (contain data, do not commit)
+lms_db_backup.json
+backup_mssql.js
+migrate.js
+migrate_to_neon.js
+migrate_from_json.js
+schema_only.js
+set_vercel_env.js
+deploy.js
+errors.json
+logs.json
+logs2.json
+scratch/
+tsconfig.tsbuildinfo
+.vercel

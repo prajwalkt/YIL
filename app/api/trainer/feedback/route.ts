@@ -95,14 +95,12 @@ export async function POST(request: NextRequest) {
 
     const pdfBytes = await pdfDoc.save();
     
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'reports');
-    await fs.mkdir(uploadDir, { recursive: true });
-    
     const fileName = `Feedback_${enr.StudentID}_${feedbackId}.pdf`;
-    const filePath = path.join(uploadDir, fileName);
-    await fs.writeFile(filePath, pdfBytes);
+    const r2Key = `reports/${fileName}`;
+    const { uploadToSupabase } = await import('../../../library/supabaseStorage');
+    await uploadToSupabase(r2Key, Buffer.from(pdfBytes), 'application/pdf');
     
-    const pdfUrl = `/uploads/reports/${fileName}`;
+    const pdfUrl = `/reports/${fileName}`;
 
     // Update PDF path in DB
     await pool.request().input('PDFPath', pdfUrl).input('FeedbackID', feedbackId).query(`

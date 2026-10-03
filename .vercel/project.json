@@ -1,16 +1,1 @@
-{
-  "projectId": "prj_Z0g5XXIEAZAL2Lyn6A2YqdmbsBun",
-  "orgId": "team_mlLPVL68Du1gRL3bO6x2McRz",
-  "projectName": "yts_platform",
-  "settings": {
-    "createdAt": 1789617147795,
-    "framework": "nextjs",
-    "devCommand": null,
-    "installCommand": null,
-    "buildCommand": null,
-    "outputDirectory": null,
-    "rootDirectory": null,
-    "directoryListing": false,
-    "nodeVersion": "24.x"
-  }
-}
+{"projectId":"prj_TC7M4I5DuajOJ7yTpgky6hHj1y5V","orgId":"team_PHGEfVQEsVdULVkGmnSfXJcW","projectName":"yts_platform"}

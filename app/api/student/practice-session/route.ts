@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Find available VM or check limits
     // Lock the selection to prevent race conditions
-    const txn = new sql.Transaction(pool);
+    const txn = pool.transaction();
     await txn.begin();
 
     try {
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleSessionExpiry(pool: sql.ConnectionPool, sessionId: number, vmName: string) {
+async function handleSessionExpiry(pool: any, sessionId: number, vmName: string) {
   // Update session
   await pool.request()
     .input('SessionId', sessionId)

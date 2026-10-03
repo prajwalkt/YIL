@@ -145,13 +145,11 @@ export async function POST(request: NextRequest) {
       page.drawText(`Pass Mark Required: ${passMarks}`, { x: 50, y: 560, size: 12, font });
 
       const pdfBytes = await pdfDoc.save();
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'reports');
-      await fs.mkdir(uploadDir, { recursive: true });
-      
       const fileName = `Assessment_Result_${assessmentInfo.StudentID}_${resultId}.pdf`;
-      const filePath = path.join(uploadDir, fileName);
-      await fs.writeFile(filePath, pdfBytes);
-      pdfUrl = `/uploads/reports/${fileName}`;
+      const r2Key = `reports/${fileName}`;
+      const { uploadToSupabase } = await import('../../../../library/supabaseStorage');
+      await uploadToSupabase(r2Key, Buffer.from(pdfBytes), 'application/pdf');
+      pdfUrl = `/reports/${fileName}`;
     } catch (pdfErr) {
       console.error('Failed to regenerate PDF:', pdfErr);
     }

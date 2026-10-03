@@ -1,4 +1,3 @@
-import DOMPurify from 'isomorphic-dompurify';
 import { NextRequest } from 'next/server';
 
 export class ValidationError extends Error {
@@ -32,10 +31,8 @@ export function hasMaliciousPayload(input: string): boolean {
  */
 export function sanitizeHtml(input: string): string {
   if (!input) return input;
-  return DOMPurify.sanitize(input, {
-    ALLOWED_TAGS: [], // Strip all HTML tags
-    ALLOWED_ATTR: [],
-  }).trim();
+  // Replace DOMPurify with simple regex to strip all tags to avoid Vercel ESM crash with jsdom
+  return input.replace(/<\/?[^>]+(>|$)/g, "").trim();
 }
 
 /**

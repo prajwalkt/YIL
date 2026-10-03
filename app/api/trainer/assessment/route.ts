@@ -92,14 +92,12 @@ export async function POST(request: NextRequest) {
 
     const pdfBytes = await pdfDoc.save();
     
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'reports');
-    await fs.mkdir(uploadDir, { recursive: true });
-    
     const fileName = `Assessment_${enr.StudentID}_${assessmentId}.pdf`;
-    const filePath = path.join(uploadDir, fileName);
-    await fs.writeFile(filePath, pdfBytes);
+    const r2Key = `reports/${fileName}`;
+    const { uploadToSupabase } = await import('../../../library/supabaseStorage');
+    await uploadToSupabase(r2Key, Buffer.from(pdfBytes), 'application/pdf');
     
-    const pdfUrl = `/uploads/reports/${fileName}`;
+    const pdfUrl = `/reports/${fileName}`;
 
     // Update PDF path in DB
     await pool.request().input('PDFPath', pdfUrl).input('AssessmentID', assessmentId).query(`
@@ -127,7 +125,7 @@ export async function POST(request: NextRequest) {
              <p>Overall Score: ${totalScore}</p>
              <p>Status: ${status || 'COMPLETED'}</p>
              <p>Please find your official Assessment Report attached.</p>`,
-      attachments: [{ filename: fileName, path: filePath }]
+      attachments: [{ filename: fileName, content: Buffer.from(pdfBytes) }]
     });
 
     return NextResponse.json({ success: true, message: 'Assessment saved and emailed to student', pdfUrl });
