@@ -3,8 +3,14 @@ import fs from 'fs';
 import path from 'path';
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''; // If using service role for server, swap if needed
+// The env var has been set to the dashboard URL (https://supabase.com/dashboard/project/<ref>)
+// in some environments; the client needs the API URL (https://<ref>.supabase.co).
+function resolveSupabaseUrl(raw: string): string {
+  const m = raw.match(/supabase\.com\/dashboard\/project\/([a-z0-9]+)/i);
+  return m ? `https://${m[1]}.supabase.co` : raw.replace(/\/+$/, '');
+}
+const supabaseUrl = resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL || '');
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 const BUCKET_NAME = 'lms-storage';

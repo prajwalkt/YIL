@@ -44,20 +44,12 @@ export async function POST(request: NextRequest) {
 
     const isVideo = contentType === 'VIDEO';
 
-    // Build destination path
+    // Build destination key (Supabase Storage — Vercel filesystem is ephemeral)
     const subDir = isVideo ? 'videos' : 'docs';
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'elearning', courseId, subDir);
-
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // Unique filename
     const safeName = generateSafeFilename(file.name, isVideo ? 'video' : 'doc');
-    const filePath = `/uploads/elearning/${courseId}/${subDir}/${safeName}`;
-    const absPath = join(process.cwd(), 'public', filePath);
-
-    await writeFile(absPath, buffer);
+    const filePath = `elearning/${courseId}/${subDir}/${safeName}`;
+    const { uploadToSupabase } = await import('../../../../library/supabaseStorage');
+    await uploadToSupabase(filePath, buffer, file.type);
 
     return NextResponse.json({
       success: true,

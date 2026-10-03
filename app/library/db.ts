@@ -233,6 +233,14 @@ class SqlServerToPgRequest {
       .replace(/ISNULL\(/gi, 'COALESCE(')
       .replace(/OUTPUT INSERTED\.([a-zA-Z0-9_]+)/gi, 'RETURNING $1');
 
+    const outputMatch = sqlString.match(/OUTPUT\s+INSERTED\.([a-zA-Z0-9_]+)/i);
+    if (outputMatch) {
+      // It was already replaced by 'RETURNING $1' inline, so we remove the inline RETURNING
+      pgSql = pgSql.replace(/RETURNING\s+[a-zA-Z0-9_]+/i, '').trim();
+      if (pgSql.endsWith(';')) pgSql = pgSql.slice(0, -1);
+      pgSql += ` RETURNING ${outputMatch[1]}`;
+    }
+
     // Replace @Param with $N and build values array
     const paramsArray: any[] = [];
     let paramIndex = 1;
