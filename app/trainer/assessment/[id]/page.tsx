@@ -13,11 +13,42 @@ export default function AssessmentForm() {
   const [student, setStudent] = useState<any>(null);
   
   const [marks, setMarks] = useState<Record<string, number>>({
-    'Theoretical Knowledge': 0,
-    'Practical Application': 0,
-    'Problem Solving': 0,
-    'Safety Awareness': 0
+    'Q1: Three components of DCS': 0,
+    'Q2: Three types of Comm Bus': 0,
+    'Q3: Total no of Trend blocks': 0,
+    'Q4: Types of user defined windows': 0,
+    'Q5: EC401 in FFCS is used for': 0,
+    'Q6: FIO stands for': 0,
+    'Q7: Number of Processor cards': 0,
+    'Q8: Data transmission speed of Vnet/IP': 0,
+    'Q9: Match the Following (Stations/Domains)': 0,
+    'Q10: Max Number of Stations / System': 0,
+    'Q11: Modes of Operation of Instrument faceplate': 0,
+    'Q12: Cascade Mode correct statement': 0,
+    'Q13: PV crosses PH limit alarm': 0,
+    'Q14: PV crosses PL limit alarm': 0,
+    'Q15: Control Group faceplates': 0,
+    'Q16: Downloading during plant shut down': 0
   });
+
+  const maxMarks: Record<string, number> = {
+    'Q1: Three components of DCS': 3,
+    'Q2: Three types of Comm Bus': 3,
+    'Q3: Total no of Trend blocks': 1,
+    'Q4: Types of user defined windows': 4,
+    'Q5: EC401 in FFCS is used for': 1,
+    'Q6: FIO stands for': 1,
+    'Q7: Number of Processor cards': 1,
+    'Q8: Data transmission speed of Vnet/IP': 1,
+    'Q9: Match the Following (Stations/Domains)': 3,
+    'Q10: Max Number of Stations / System': 1,
+    'Q11: Modes of Operation of Instrument faceplate': 3,
+    'Q12: Cascade Mode correct statement': 2,
+    'Q13: PV crosses PH limit alarm': 1,
+    'Q14: PV crosses PL limit alarm': 1,
+    'Q15: Control Group faceplates': 2,
+    'Q16: Downloading during plant shut down': 1
+  };
   const [remarks, setRemarks] = useState('');
   const [pdfUrl, setPdfUrl] = useState('');
 
@@ -81,14 +112,14 @@ export default function AssessmentForm() {
               <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
                 <h3 className="font-bold text-gray-800 border-b border-gray-200 pb-2">Marks (out of 10)</h3>
                 {Object.keys(marks).map(q => (
-                  <div key={q} className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-gray-700">{q}</label>
+                  <div key={q} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+                    <label className="text-sm font-semibold text-gray-700 flex-1">{q} <span className="text-gray-400 font-normal">(Max: {maxMarks[q]})</span></label>
                     <input 
                       type="number" 
-                      min="0" max="10" 
-                      value={marks[q]} 
+                      min="0" max={maxMarks[q]} 
+                      value={marks[q] || ''} 
                       onChange={e => setMarks({...marks, [q]: Number(e.target.value)})}
-                      className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-center focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50"
                       required
                     />
                   </div>

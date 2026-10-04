@@ -35,31 +35,56 @@ export async function POST(request: NextRequest) {
       totalScore += Number(marks[key]) || 0;
     }
 
-    // Insert into Assessments
-    const req = pool.request();
-    req.input('RegistrationID', enr.RegistrationID);
-    req.input('StudentID', enr.StudentID);
-    req.input('TrainerID', user!.userId);
-    req.input('CourseID', enr.CourseID);
-    req.input('CalendarID', enr.CalendarID);
-    req.input('OverallScore', totalScore);
-    req.input('Remarks', remarks || '');
-    req.input('Status', status || 'COMPLETED');
+    // Check if VPFE assessment already exists
+    const assessmentQuery = await pool.request()
+      .input('CourseID', Number(enr.CourseID))
+      .query(`SELECT AssessmentID, Title FROM Assessments WHERE CourseID = @CourseID AND Title LIKE '%VPFE%'`);
+      
+    let assessmentId = assessmentQuery.recordset[0]?.AssessmentID;
+    
+    if (!assessmentId) {
+       const newAsses = await pool.request()
+        .input('CourseID', Number(enr.CourseID))
+        .query(`
+          INSERT INTO Assessments (CourseID, Title, Description, TotalMarks, PassMarks, DurationMinutes, IsActive)
+          OUTPUT INSERTED.AssessmentID
+          VALUES (@CourseID, 'VPFE Assessment', 'Centum VP Fundamental and Engineering', 50, 25, 60, 1)
+        `);
+       assessmentId = newAsses.recordset[0].AssessmentID;
+    }
 
-    const assessRes = await req.query(`
-      INSERT INTO Assessments (RegistrationID, StudentID, TrainerID, CourseID, CalendarID, OverallScore, Remarks, Status)
-      OUTPUT INSERTED.AssessmentID
-      VALUES (@RegistrationID, @StudentID, @TrainerID, @CourseID, @CalendarID, @OverallScore, @Remarks, @Status)
-    `);
-    const assessmentId = assessRes.recordset[0].AssessmentID;
+    const percentage = totalScore * 2;
+    const passed = totalScore >= 25 ? 1 : 0;
 
-    // Insert Responses
-    for (const question in marks) {
+    // Insert or Update AssessmentResults
+    const existing = await pool.request()
+      .input('AssessmentID', assessmentId)
+      .input('StudentID', enr.StudentID)
+      .query(`SELECT ResultID FROM AssessmentResults WHERE AssessmentID = @AssessmentID AND StudentID = @StudentID`);
+      
+    if (existing.recordset.length > 0) {
+      await pool.request()
+        .input('ResultID', existing.recordset[0].ResultID)
+        .input('Score', totalScore)
+        .input('Percentage', percentage)
+        .input('Passed', passed)
+        .query(`
+          UPDATE AssessmentResults 
+          SET Score = @Score, Percentage = @Percentage, Passed = @Passed 
+          WHERE ResultID = @ResultID
+        `);
+    } else {
       await pool.request()
         .input('AssessmentID', assessmentId)
-        .input('Question', question)
-        .input('Marks', Number(marks[question]))
-        .query(`INSERT INTO AssessmentResponses (AssessmentID, Question, Marks) VALUES (@AssessmentID, @Question, @Marks)`);
+        .input('StudentID', enr.StudentID)
+        .input('Score', totalScore)
+        .input('TotalMarks', 50)
+        .input('Percentage', percentage)
+        .input('Passed', passed)
+        .query(`
+          INSERT INTO AssessmentResults (AssessmentID, StudentID, Score, TotalMarks, Percentage, Passed, AttemptedAt)
+          VALUES (@AssessmentID, @StudentID, @Score, @TotalMarks, @Percentage, @Passed, GETDATE())
+        `);
     }
 
     // Generate PDF
@@ -99,11 +124,6 @@ export async function POST(request: NextRequest) {
     
     const pdfUrl = `/reports/${fileName}`;
 
-    // Update PDF path in DB
-    await pool.request().input('PDFPath', pdfUrl).input('AssessmentID', assessmentId).query(`
-      UPDATE Assessments SET PDFPath = @PDFPath WHERE AssessmentID = @AssessmentID
-    `);
-
     // Update Enrollment and Registration if COMPLETED
     if (status === 'COMPLETED' || status === 'PASSED') {
       await pool.request()
@@ -111,7 +131,7 @@ export async function POST(request: NextRequest) {
         .input('RegistrationID', enr.RegistrationID)
         .query(`
           UPDATE Enrollments SET Status = 'COMPLETED', ProgressPercent = 100 WHERE EnrollmentID = @EnrollmentID;
-          UPDATE Registrations SET Status = 'COMPLETED' WHERE Id = @RegistrationID;
+          UPDATE LMS_Registrations SET Status = 'COMPLETED' WHERE Id = @RegistrationID;
         `);
     }
 
