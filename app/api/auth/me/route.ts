@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       role: user.role,
       firstName: user.firstName,
       lastName: user.lastName,
+      mustChangePassword: user.mustChangePassword,
     }
   });
 }

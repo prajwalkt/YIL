@@ -12,6 +12,7 @@ export default function ChangePasswordPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isForced, setIsForced] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -20,7 +21,11 @@ export default function ChangePasswordPage() {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
-        if (!data.success) router.push('/login');
+        if (!data.success) {
+          router.push('/login');
+        } else {
+          setIsForced(data.user?.mustChangePassword === true);
+        }
       })
       .catch(() => router.push('/login'));
   }, [router]);
@@ -34,8 +39,11 @@ export default function ChangePasswordPage() {
     e.preventDefault();
     setError(''); setSuccess('');
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setError('All fields are required.'); return;
+    if (!isForced && !currentPassword) {
+      setError('Current password is required.'); return;
+    }
+    if (!newPassword || !confirmPassword) {
+      setError('New password and confirmation are required.'); return;
     }
     if (newPassword !== confirmPassword) {
       setError('New passwords do not match.'); return;
@@ -92,11 +100,12 @@ export default function ChangePasswordPage() {
         </div>
 
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
-          {/* Security notice */}
-          <div className="mb-6 flex items-start gap-3 bg-orange-500/20 border border-orange-400/30 text-orange-200 rounded-2xl px-4 py-3 text-sm">
-            <AlertCircle size={16} className="shrink-0 mt-0.5" />
-            <span>You are using a temporary password. You must create a new password to access the platform.</span>
-          </div>
+          {isForced && (
+            <div className="mb-6 flex items-start gap-3 bg-orange-500/20 border border-orange-400/30 text-orange-200 rounded-2xl px-4 py-3 text-sm">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <span>You are logging in with a temporary password. You must create a new permanent password to access the platform.</span>
+            </div>
+          )}
 
           {error && (
             <div className="mb-5 flex items-center gap-3 bg-red-500/20 border border-red-400/30 text-red-200 rounded-2xl px-4 py-3 text-sm">
@@ -112,24 +121,26 @@ export default function ChangePasswordPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Current (Temp) Password */}
-            <div>
-              <label className="block text-white/80 text-sm font-semibold mb-2">Temporary Password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-                <input
-                  type={showCurrent ? 'text' : 'password'}
-                  value={currentPassword}
-                  onChange={e => setCurrentPassword(e.target.value)}
-                  placeholder="Enter your temporary password"
-                  className="w-full bg-white/10 border border-white/20 text-white placeholder-white/30 rounded-2xl pl-12 pr-12 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 transition-all"
-                  required disabled={loading}
-                />
-                <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors">
-                  {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+            {/* Current (Temp) Password - Hide if forced to prevent autofill issues */}
+            {!isForced && (
+              <div>
+                <label className="block text-white/80 text-sm font-semibold mb-2">Current Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                  <input
+                    type={showCurrent ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={e => setCurrentPassword(e.target.value)}
+                    placeholder="Enter your current password"
+                    className="w-full bg-white/10 border border-white/20 text-white placeholder-white/30 rounded-2xl pl-12 pr-12 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 transition-all"
+                    required={!isForced} disabled={loading}
+                  />
+                  <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors">
+                    {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* New Password */}
             <div>

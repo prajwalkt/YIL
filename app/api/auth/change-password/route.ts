@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
     const body = await parseAndSanitizeBody(request);
     const { currentPassword, newPassword, confirmPassword } = body;
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      return NextResponse.json({ success: false, message: 'All fields are required' }, { status: 400 });
+    if (!newPassword || !confirmPassword) {
+      return NextResponse.json({ success: false, message: 'New password is required' }, { status: 400 });
     }
 
     if (newPassword !== confirmPassword) {
@@ -37,19 +37,25 @@ export async function POST(request: NextRequest) {
     // Fetch current hash
     const result = await pool.request()
       .input('UserID', user.userId)
-      .query(`SELECT PasswordHash, Role, FirstName, LastName, Email FROM LMS_Users WHERE UserID = @UserID`);
+      .query(`SELECT PasswordHash, Role, FirstName, LastName, Email, MustChangePassword FROM LMS_Users WHERE UserID = @UserID`);
 
     if (result.recordset.length === 0) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
     const dbUser = result.recordset[0];
+    const isForced = dbUser.MustChangePassword === true || dbUser.MustChangePassword === 1;
 
-    // Verify current password
-    const isValid = await comparePassword(currentPassword, dbUser.PasswordHash);
-    if (!isValid) {
-      await auditLog(user.userId, user.email, 'CHANGE_PASSWORD_FAILED', 'AUTH', 'Wrong current password', ip, 'FAILURE');
-      return NextResponse.json({ success: false, message: 'Current password is incorrect' }, { status: 400 });
+    // Verify current password only if not in forced change mode
+    if (!isForced) {
+      if (!currentPassword) {
+        return NextResponse.json({ success: false, message: 'Current password is required' }, { status: 400 });
+      }
+      const isValid = await comparePassword(currentPassword, dbUser.PasswordHash);
+      if (!isValid) {
+        await auditLog(user.userId, user.email, 'CHANGE_PASSWORD_FAILED', 'AUTH', 'Wrong current password', ip, 'FAILURE');
+        return NextResponse.json({ success: false, message: 'Current password is incorrect' }, { status: 400 });
+      }
     }
 
     // Hash and save new password
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
       await pool.request()
         .input('Hash', newHash)
         .input('UserID', user.userId)
-        .query(`UPDATE LMS_Users SET PasswordHash = @Hash, MustChangePassword = 0 WHERE UserID = @UserID`);
+        .query(`UPDATE LMS_Users SET PasswordHash = @Hash, MustChangePassword = '0' WHERE UserID = @UserID`);
     } catch (err) {
       console.error('Failed to update password hash in DB', err);
       throw err; // Let the outer catch handle it

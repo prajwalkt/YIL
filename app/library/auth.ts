@@ -43,6 +43,7 @@ export interface AuthUser {
   lastName: string;
   sessionId?: string;
   country?: string;
+  mustChangePassword?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -110,6 +111,7 @@ export function getUserFromRequest(req: NextRequest): AuthUser | null {
     firstName: payload.firstName,
     lastName: payload.lastName,
     sessionId: payload.sessionId,
+    mustChangePassword: payload.mustChangePassword,
   };
 }
 
