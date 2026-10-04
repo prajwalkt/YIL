@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
     // Get active enrollments
     const enrollmentsResult = await req.query(`
       SELECT e.*, c.Title as CourseTitle, ISNULL(r.TrainingMode, c.Mode) as Mode,
-             c.ManualURL,
              tc.StartDate, tc.EndDate, tc.TrainerName, tc.Location,
              (SELECT COUNT(*) FROM Attendance a WHERE a.EnrollmentID = e.EnrollmentID AND a.Status = 'Present') as DaysAttended,
              (SELECT TOP 1 WatchedSeconds FROM ELearningProgress el WHERE el.EnrollmentID = e.EnrollmentID) as WatchedSeconds,

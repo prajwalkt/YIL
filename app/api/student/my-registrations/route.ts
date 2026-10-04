@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     // Usually Affiliate registrations use the Affiliate's email for tracking, or a specific field.
     // Assuming the email field in Registrations matches the person who registered it.
     const result = await req.query(`
-      SELECT Id, Name, Email, Phone, Company, Course, TrainingMode, Message, Status, CreatedAt 
+      SELECT Id, Name, Email, Phone, Organization as Company, Course, TrainingMode, SpecialInstructions as Message, Status, CreatedAt 
       FROM Registrations 
       WHERE Email = @Email
       ORDER BY CreatedAt DESC
