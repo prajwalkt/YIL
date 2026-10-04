@@ -318,7 +318,7 @@ export async function PUT(request: NextRequest) {
           .query(`
             INSERT INTO LMS_Users (FirstName, LastName, Email, Phone, PasswordHash, Role, Organization, Country, IsApproved, IsActive, MustChangePassword)
             OUTPUT INSERTED.UserID
-            VALUES (@FirstName, @LastName, @Email, @Phone, @PasswordHash, @Role, @Organization, @Country, 1, 1, 1)
+            VALUES (@FirstName, @LastName, @Email, @Phone, @PasswordHash, @Role, @Organization, @Country, '1', '1', '1')
           `);
         studentId = insertUser.recordset[0].UserID;
         console.log(`[APPROVALS] Successfully created new user ${reg.Email} with UserID ${studentId}.`);
@@ -354,10 +354,10 @@ export async function PUT(request: NextRequest) {
           .query(`
             UPDATE LMS_Users 
             SET 
-              IsApproved = 1, 
-              IsActive = 1, 
+              IsApproved = '1', 
+              IsActive = '1', 
               PasswordHash = @PasswordHash, 
-              MustChangePassword = 1, 
+              MustChangePassword = '1', 
               Role = @Role,
               FirstName = @FirstName,
               LastName = @LastName,
@@ -430,33 +430,42 @@ export async function PUT(request: NextRequest) {
       }
 
       try {
-        // Use MERGE to avoid duplicate-enrollment errors while still updating access dates
-        await pool.request()
+        // Check if enrollment exists
+        const existingEnroll = await pool.request()
+          .input('StudentID', studentId)
+          .input('CourseID', courseId)
+          .query(`SELECT EnrollmentID FROM Enrollments WHERE StudentID = @StudentID AND CourseID = @CourseID`);
+
+        const enrollReq = pool.request()
           .input('StudentID', studentId)
           .input('CourseID', courseId)
           .input('RegistrationID', reg.Id)
           .input('AccessStart', accessStart)
           .input('AccessEnd', accessEnd)
           .input('Duration', durationDays)
-          .input('CalendarID', reg.SelectedSlotID ? Number(reg.SelectedSlotID) : null)
-          .query(`
-            MERGE Enrollments AS target
-            USING (SELECT @StudentID AS StudentID, @CourseID AS CourseID) AS source
-            ON target.StudentID = source.StudentID AND target.CourseID = source.CourseID
-            WHEN MATCHED THEN
-              UPDATE SET
-                RegistrationID = @RegistrationID,
+          .input('CalendarID', reg.SelectedSlotID ? Number(reg.SelectedSlotID) : null);
+
+        if (existingEnroll.recordset.length > 0) {
+          // Update existing
+          await enrollReq.query(`
+            UPDATE Enrollments 
+            SET RegistrationID = @RegistrationID,
                 AccessStartDate = @AccessStart,
                 AccessEndDate = @AccessEnd,
                 DurationDays = @Duration,
                 CalendarID = @CalendarID,
                 Status = 'ACTIVE'
-            WHEN NOT MATCHED THEN
-              INSERT (StudentID, CourseID, RegistrationID, AccessStartDate, AccessEndDate, DurationDays, CalendarID, Status, ProgressPercent)
-              VALUES (@StudentID, @CourseID, @RegistrationID, @AccessStart, @AccessEnd, @Duration, @CalendarID, 'ACTIVE', 0);
+            WHERE StudentID = @StudentID AND CourseID = @CourseID
           `);
+        } else {
+          // Insert new
+          await enrollReq.query(`
+            INSERT INTO Enrollments (StudentID, CourseID, RegistrationID, AccessStartDate, AccessEndDate, DurationDays, CalendarID, Status, ProgressPercent, EnrolledAt)
+            VALUES (@StudentID, @CourseID, @RegistrationID, @AccessStart, @AccessEnd, @Duration, @CalendarID, 'ACTIVE', 0, GETDATE())
+          `);
+        }
       } catch (err) {
-        console.warn(`[APPROVALS] Merge failed, likely already enrolled. Skipping MERGE:`, err);
+        console.warn(`[APPROVALS] Enrollment creation/update failed:`, err);
       }
       
       // ── Find Trainer Name & Email ──

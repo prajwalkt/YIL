@@ -306,7 +306,7 @@ export default function LearnerPortal({ userRole = 'STUDENT' }: { userRole?: 'ST
                       }`}>{e.Status}</span>
                       <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-md">{e.Mode}</span>
                     </div>
-                    <a href={`/student/course/${e.EnrollmentID}`} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-blue-600 block mb-1">
+                    <a href={`/student/course/${e.EnrollmentID}`} className="hover:underline hover:text-blue-600 block mb-1">
                       <h3 className="text-lg font-bold text-gray-800">{e.CourseTitle}</h3>
                     </a>
                     {e.DateApprovalStatus === 'PENDING' ? (
