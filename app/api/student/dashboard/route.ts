@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
       SELECT e.*, c.Title as CourseTitle, ISNULL(r.TrainingMode, c.Mode) as Mode,
              tc.StartDate, tc.EndDate, tc.TrainerName, tc.Location,
              (SELECT COUNT(*) FROM Attendance a WHERE a.EnrollmentID = e.EnrollmentID AND a.Status = 'Present') as DaysAttended,
-             (SELECT TOP 1 WatchedSeconds FROM ELearningProgress el WHERE el.EnrollmentID = e.EnrollmentID) as WatchedSeconds,
-             (SELECT TOP 1 TotalSeconds FROM ELearningProgress el WHERE el.EnrollmentID = e.EnrollmentID) as TotalSeconds,
+             (SELECT WatchedSeconds FROM ELearningProgress el WHERE CAST(el.EnrollmentID AS VARCHAR) = CAST(e.EnrollmentID AS VARCHAR) LIMIT 1) as WatchedSeconds,
+             (SELECT TotalSeconds FROM ELearningProgress el WHERE CAST(el.EnrollmentID AS VARCHAR) = CAST(e.EnrollmentID AS VARCHAR) LIMIT 1) as TotalSeconds,
              r.OriginalStartDate, r.OriginalEndDate, r.FinalStartDate, r.FinalEndDate, r.DateApprovalStatus
       FROM Enrollments e
       JOIN LMS_Courses c ON e.CourseID = c.CourseID
@@ -104,6 +104,6 @@ export async function GET(request: NextRequest) {
       catalog: catalogResult.recordset
     });
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: process.env.NODE_ENV === 'development' ? e.message : 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, message: e.message || 'Internal Server Error' }, { status: 500 });
   }
 }
