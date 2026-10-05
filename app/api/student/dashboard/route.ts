@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     const invoicesResult = await pool.request().input('StudentID', user!.userId).query(`
       SELECT InvoiceNo, CourseName, Amount, Currency, Status, IssuedDate, DueDate 
       FROM Invoices 
-      WHERE StudentName = (SELECT FirstName + ' ' + LastName FROM LMS_Users WHERE UserID = @StudentID)
+      WHERE StudentName = (SELECT FirstName || ' ' || LastName FROM LMS_Users WHERE UserID = @StudentID)
       ORDER BY IssuedDate DESC
     `);
 

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       const invoicesResult = await req.query(`
         SELECT i.* 
         FROM Invoices i
-        JOIN LMS_Users u ON i.StudentName = u.FirstName + ' ' + u.LastName
+        JOIN LMS_Users u ON i.StudentName = u.FirstName || ' ' || u.LastName
         WHERE (u.Country = @Country OR @Country = '')
         ORDER BY i.IssuedDate DESC
       `);
